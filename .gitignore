@@ -1,0 +1,29 @@
+node_modules/
+dist/
+build/
+.env
+.env.local
+.env.*.local
+*.log
+.DS_Store
+.vscode/
+.idea/
+.turbo/
+.cache/
+coverage/
+
+# Build artifacts
+apps/web/src/data/pages/*.json
+apps/web/src/data/metadata.json
+apps/web/src/data/mutashabihat.json
+apps/web/public/fonts/*.woff2
+
+# Scratch / temp
+scripts/.qul-cache/
+
+# TanStack Router auto-generated tree
+apps/web/src/routeTree.gen.ts
+
+# Local-only tool config
+.claude/
+.mcp.json

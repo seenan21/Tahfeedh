@@ -13,7 +13,7 @@ function optional(name: string, fallback: string): string {
 }
 
 export const env = {
-  port: parseInt(optional('EXPRESS_PORT', '3001'), 10),
+  port: parseInt(process.env.PORT ?? optional('EXPRESS_PORT', '3001'), 10),
   sessionSecret: required('SESSION_SECRET'),
 
   supabaseUrl: required('SUPABASE_URL'),

@@ -7,11 +7,15 @@
     "packages/*"
   ],
   "scripts": {
+    "build:shared": "npm run build --workspace=@tahfeedh/shared",
+    "dev:shared": "npm run dev --workspace=@tahfeedh/shared",
     "dev:web": "npm run dev --workspace=@tahfeedh/web",
     "dev:server": "npm run dev --workspace=@tahfeedh/server",
-    "dev": "npm-run-all --parallel dev:web dev:server",
-    "build": "npm run build --workspaces --if-present",
-    "build:web": "npm run build:assets && npm run build --workspace=@tahfeedh/web",
+    "predev": "npm run build:shared",
+    "dev": "npm-run-all --parallel dev:shared dev:web dev:server",
+    "build": "npm run build:shared && npm run build --workspace=@tahfeedh/server && npm run build:web",
+    "build:server": "npm run build:shared && npm run build --workspace=@tahfeedh/server",
+    "build:web": "npm run build:shared && npm run build:assets && npm run build --workspace=@tahfeedh/web",
     "build:assets": "npm run build:quran-data && npm run download:fonts",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "build:quran-data": "tsx scripts/build-quran-data.ts",

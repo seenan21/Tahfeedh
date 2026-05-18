@@ -25,4 +25,4 @@
 - `scripts/build-quran-data.ts` also writes the derived `quran-index.json` to web and server data directories alongside the per-page JSONs and metadata.
 
 ### Fixed
-- (nothing yet)
+- Production crash on `node dist/index.js` (`ERR_UNKNOWN_FILE_EXTENSION ".ts"`): `@tahfeedh/shared` now compiles to `dist/*.js` + `.d.ts` and `package.json` `exports` point at the built artifacts. Root scripts enforce build order (shared → server → web); `predev` builds shared on cold start and `dev:shared` watches it during development.

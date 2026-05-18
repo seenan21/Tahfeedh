@@ -26,3 +26,4 @@
 
 ### Fixed
 - Production crash on `node dist/index.js` (`ERR_UNKNOWN_FILE_EXTENSION ".ts"`): `@tahfeedh/shared` now compiles to `dist/*.js` + `.d.ts` and `package.json` `exports` point at the built artifacts. Root scripts enforce build order (shared → server → web); `predev` builds shared on cold start and `dev:shared` watches it during development.
+- Server boot crash on Railway: `@supabase/supabase-js` realtime client needs a WebSocket impl that Node 20 doesn't ship natively. Bumped engines.node to `>=22` (root + apps/server) and added `.nvmrc` pinning 22. Node 22 has native WebSocket so no `ws` runtime dep needed.

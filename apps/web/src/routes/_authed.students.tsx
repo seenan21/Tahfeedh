@@ -1,4 +1,5 @@
 import { createFileRoute, redirect } from '@tanstack/react-router';
+import { Users } from 'lucide-react';
 import { homeRouteForRole } from '../lib/auth';
 import { EmptyState } from '../components/EmptyState';
 
@@ -16,7 +17,9 @@ function StudentsPage() {
     <EmptyState
       arabic="الطلاب"
       english="Students"
-      helper={`Welcome, ${user.displayName ?? user.email}. Enrolled students will appear here once the enrollment flow is in (M6).`}
+      icon={Users}
+      tag="Phase E · M6"
+      helper={`As-salāmu ʿalaykum, ${user.displayName ?? user.email}. Enrolled students will appear here once the enrollment flow is in.`}
     />
   );
 }

@@ -13,7 +13,7 @@
 - **Phase B:** done — half-page schema (0013) + `commit_onboarding` SQL fn, derived `quran-index.json` artifact, `POST /api/onboarding/finish` endpoint, real 3-step onboarding flow (juz grid + searchable surah list + partial-page picker + half-page session-size), Today skeleton (streak + juz-progress + empty slots), visual polish (SilkBackground on auth, bilingual hero, user-menu dropdown, Lucide sidebar icons, bilingual EmptyState on every stub route).
 - **M2 (Mushaf), data half:** done — 604 per-page JSON files, metadata.json, 604 page-scoped QPC V2 fonts auto-loaded via generated CSS, deploy wiring (`npm run build:web`).
 - **M2 (Mushaf), components half:** not started — no `<MushafPage />`, no grid view yet.
-- **Design surface:** stable. Latest ADRs: 0006 (NUMERIC half-page), 0007 (quran-index artifact), 0008 (onboarding bulk-write via Express + SQL fn), 0009 (SilkBackground entry-points only).
+- **Design surface:** stable. Latest ADRs: 0006 (NUMERIC half-page), 0007 (quran-index artifact), 0008 (onboarding bulk-write via Express + SQL fn), 0009 (SilkBackground entry-points only), 0010 (modernized shell: depth gradients + glassy header + 30-cell juz grid + CSS-module sidebar).
 
 ---
 

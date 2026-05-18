@@ -1,4 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router';
+import { Settings as SettingsIcon } from 'lucide-react';
 import { EmptyState } from '../components/EmptyState';
 
 export const Route = createFileRoute('/_authed/settings')({
@@ -10,7 +11,9 @@ function SettingsPage() {
     <EmptyState
       arabic="الإعدادات"
       english="Settings"
-      helper="Daily capacity, completed-Qur'an flag, invite code, Edit Memorization, profile. Phase C onward."
+      icon={SettingsIcon}
+      tag="Phase C onward"
+      helper="Daily capacity, completed-Qur'an flag, invite code, Edit Memorization, profile."
     />
   );
 }

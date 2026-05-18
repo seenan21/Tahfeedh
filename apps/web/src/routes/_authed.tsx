@@ -1,6 +1,5 @@
 import { createFileRoute, Outlet, redirect, useNavigate } from '@tanstack/react-router';
 import {
-  ActionIcon,
   AppShell,
   Avatar,
   Badge,
@@ -8,10 +7,9 @@ import {
   Menu,
   Stack,
   Text,
-  Title,
   UnstyledButton,
 } from '@mantine/core';
-import { ChevronDown, LogOut, Settings as SettingsIcon } from 'lucide-react';
+import { ChevronDown, LogOut, Settings as SettingsIcon, User } from 'lucide-react';
 import { getCurrentUser, signOut } from '../lib/auth';
 import { AppSidebar } from '../components/AppSidebar';
 
@@ -53,43 +51,80 @@ function AuthedLayout() {
     <AppShell
       header={{ height: 64 }}
       navbar={{
-        width: 240,
+        width: 268,
         breakpoint: 'sm',
         collapsed: { mobile: false, desktop: false },
       }}
-      padding="lg"
+      padding="xl"
+      styles={{
+        header: {
+          backgroundColor: 'rgba(255, 255, 193, 0.78)',
+          backdropFilter: 'blur(14px) saturate(140%)',
+          WebkitBackdropFilter: 'blur(14px) saturate(140%)',
+          borderBottom: '1px solid rgba(21, 53, 30, 0.08)',
+        },
+        main: {
+          background:
+            'radial-gradient(ellipse at 30% 0%, #1c4129 0%, #15351E 55%, #102819 100%)',
+          minHeight: '100vh',
+        },
+      }}
     >
       <AppShell.Header>
-        <Group h="100%" px="lg" justify="space-between">
-          <Title
-            order={3}
-            style={{ fontFamily: '"Playfair Display", serif', letterSpacing: '0.02em' }}
-          >
-            Tahfeedh
-          </Title>
-          <Menu position="bottom-end" withArrow shadow="md" width={220}>
+        <Group h="100%" px="xl" justify="space-between">
+          <Group gap="xs">
+            <Badge variant="dot" color="sage.7" size="sm" radius="sm">
+              {user.role === 'student' ? 'Hifz student' : 'Hifz teacher'}
+            </Badge>
+          </Group>
+
+          <Menu position="bottom-end" withArrow shadow="lg" width={240} offset={8}>
             <Menu.Target>
-              <UnstyledButton>
-                <Group gap="xs">
-                  <Avatar color="mihrab" radius="xl" size={32}>
-                    {initialOf(user.displayName, user.email)}
-                  </Avatar>
-                  <Stack gap={0}>
-                    <Text size="sm" fw={600} lh={1.1}>
-                      {user.displayName ?? user.email}
-                    </Text>
-                    <Badge variant="light" color="sage" size="xs" radius="sm">
-                      {user.role}
-                    </Badge>
-                  </Stack>
-                  <ActionIcon variant="subtle" component="span" aria-label="open user menu">
-                    <ChevronDown size={16} />
-                  </ActionIcon>
-                </Group>
+              <UnstyledButton
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 10,
+                  padding: '4px 10px 4px 4px',
+                  borderRadius: 999,
+                  border: '1px solid rgba(21,53,30,0.08)',
+                  background: 'rgba(255,255,255,0.55)',
+                  transition: 'all 180ms cubic-bezier(0.4,0,0.2,1)',
+                }}
+              >
+                <Avatar
+                  color="mihrab"
+                  radius="xl"
+                  size={34}
+                  styles={{
+                    placeholder: {
+                      background:
+                        'linear-gradient(135deg, var(--mantine-color-mihrab-9) 0%, var(--mantine-color-sage-7) 100%)',
+                      color: 'var(--mantine-color-parchment-0)',
+                      fontFamily: '"Playfair Display", serif',
+                      fontWeight: 700,
+                    },
+                  }}
+                >
+                  {initialOf(user.displayName, user.email)}
+                </Avatar>
+                <Stack gap={0}>
+                  <Text size="sm" fw={600} lh={1.1}>
+                    {user.displayName ?? user.email}
+                  </Text>
+                  <Text size="xs" c="dimmed" lh={1.1}>
+                    {user.email}
+                  </Text>
+                </Stack>
+                <ChevronDown size={14} strokeWidth={2} style={{ opacity: 0.6 }} />
               </UnstyledButton>
             </Menu.Target>
             <Menu.Dropdown>
-              <Menu.Label>{user.email}</Menu.Label>
+              <Menu.Label>Signed in as</Menu.Label>
+              <Menu.Item leftSection={<User size={14} />} disabled>
+                {user.email}
+              </Menu.Item>
+              <Menu.Divider />
               <Menu.Item
                 leftSection={<SettingsIcon size={14} />}
                 onClick={() => navigate({ to: '/settings' })}
@@ -97,7 +132,11 @@ function AuthedLayout() {
                 Settings
               </Menu.Item>
               <Menu.Divider />
-              <Menu.Item leftSection={<LogOut size={14} />} onClick={handleSignOut} color="brick">
+              <Menu.Item
+                leftSection={<LogOut size={14} />}
+                onClick={handleSignOut}
+                color="brick.7"
+              >
                 Sign out
               </Menu.Item>
             </Menu.Dropdown>

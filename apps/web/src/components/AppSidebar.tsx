@@ -1,5 +1,4 @@
-import { Link } from '@tanstack/react-router';
-import { Group, Stack, Text } from '@mantine/core';
+import { Link, useMatchRoute } from '@tanstack/react-router';
 import {
   BookOpen,
   CalendarDays,
@@ -11,83 +10,69 @@ import {
   Users,
   type LucideIcon,
 } from 'lucide-react';
-import type { CSSProperties } from 'react';
 import type { UserRole } from '@tahfeedh/shared';
+import classes from './AppSidebar.module.css';
 
 interface NavItem {
   label: string;
+  arabic: string;
   to: string;
   icon: LucideIcon;
 }
 
 const STUDENT_NAV: NavItem[] = [
-  { label: 'Today',     to: '/today',    icon: Sun },
-  { label: 'Tests',     to: '/tests',    icon: GraduationCap },
-  { label: 'Timeline',  to: '/timeline', icon: CalendarDays },
-  { label: 'My Mushaf', to: '/mushaf',   icon: BookOpen },
-  { label: 'Goals',     to: '/goals',    icon: Target },
-  { label: 'Settings',  to: '/settings', icon: SettingsIcon },
+  { label: 'Today',     arabic: 'اليوم',     to: '/today',    icon: Sun },
+  { label: 'Tests',     arabic: 'الاختبارات', to: '/tests',    icon: GraduationCap },
+  { label: 'Timeline',  arabic: 'السجل',     to: '/timeline', icon: CalendarDays },
+  { label: 'My Mushaf', arabic: 'مصحفي',     to: '/mushaf',   icon: BookOpen },
+  { label: 'Goals',     arabic: 'الأهداف',   to: '/goals',    icon: Target },
+  { label: 'Settings',  arabic: 'الإعدادات', to: '/settings', icon: SettingsIcon },
 ];
 
 const TEACHER_NAV: NavItem[] = [
-  { label: 'Students',  to: '/students', icon: Users },
-  { label: 'Groups',    to: '/groups',   icon: LayoutGrid },
-  { label: 'Tests',     to: '/tests',    icon: GraduationCap },
-  { label: 'Settings',  to: '/settings', icon: SettingsIcon },
+  { label: 'Students',  arabic: 'الطلاب',     to: '/students', icon: Users },
+  { label: 'Groups',    arabic: 'الحلقات',    to: '/groups',   icon: LayoutGrid },
+  { label: 'Tests',     arabic: 'الاختبارات', to: '/tests',    icon: GraduationCap },
+  { label: 'Settings',  arabic: 'الإعدادات',  to: '/settings', icon: SettingsIcon },
 ];
 
-const baseStyle: CSSProperties = {
-  display: 'block',
-  padding: '10px 14px',
-  borderRadius: 8,
-  borderLeft: '3px solid transparent',
-  textDecoration: 'none',
-  color: 'var(--mantine-color-mihrab-9)',
-  fontWeight: 500,
-  transition:
-    'background 150ms cubic-bezier(0.4, 0, 0.2, 1), border-color 150ms cubic-bezier(0.4, 0, 0.2, 1)',
-};
-
-const hoverStyle: CSSProperties = {
-  background: 'var(--mantine-color-sage-0)',
-};
-
-const activeStyle: CSSProperties = {
-  background: 'var(--mantine-color-sage-1)',
-  borderLeft: '3px solid var(--mantine-color-mihrab-9)',
-  fontWeight: 600,
-};
+function NavRow({ item }: { item: NavItem }) {
+  const matchRoute = useMatchRoute();
+  const isActive = !!matchRoute({ to: item.to, fuzzy: false });
+  const Icon = item.icon;
+  return (
+    <Link to={item.to} className={classes.navItem} data-active={isActive}>
+      <Icon className={classes.icon} size={18} strokeWidth={1.75} />
+      <span style={{ flex: 1 }}>{item.label}</span>
+      <span
+        style={{
+          fontFamily: 'Amiri, serif',
+          fontSize: 13,
+          direction: 'rtl',
+          opacity: isActive ? 0.85 : 0.45,
+          transition: 'opacity 180ms ease',
+        }}
+      >
+        {item.arabic}
+      </span>
+    </Link>
+  );
+}
 
 export function AppSidebar({ role }: { role: UserRole }) {
   const items = role === 'student' ? STUDENT_NAV : TEACHER_NAV;
+  const sectionLabel = role === 'student' ? 'Hifz workspace' : 'Teacher workspace';
   return (
-    <Stack gap={4} p="md">
-      {items.map((item) => {
-        const Icon = item.icon;
-        return (
-          <Link
-            key={item.to}
-            to={item.to}
-            style={baseStyle}
-            activeProps={{ style: { ...baseStyle, ...activeStyle } }}
-            onMouseEnter={(e) =>
-              Object.assign((e.currentTarget as HTMLAnchorElement).style, hoverStyle)
-            }
-            onMouseLeave={(e) => {
-              const el = e.currentTarget as HTMLAnchorElement;
-              const isActive = el.getAttribute('data-status') === 'active';
-              Object.assign(el.style, isActive ? { ...baseStyle, ...activeStyle } : baseStyle);
-            }}
-          >
-            <Group gap="sm" wrap="nowrap">
-              <Icon size={18} strokeWidth={1.75} />
-              <Text component="span" size="sm">
-                {item.label}
-              </Text>
-            </Group>
-          </Link>
-        );
-      })}
-    </Stack>
+    <nav className={classes.navWrap}>
+      <div className={classes.brandMark}>
+        <div className={classes.arabic}>تَحفِيظ</div>
+        <div className={classes.english}>Tahfeedh</div>
+      </div>
+      <div className={classes.sectionLabel}>{sectionLabel}</div>
+      {items.map((item) => (
+        <NavRow key={item.to} item={item} />
+      ))}
+      <div className={classes.footer}>v0.1 · hackathon build</div>
+    </nav>
   );
 }

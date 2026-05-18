@@ -43,6 +43,8 @@ Mapped in `errorTypeColors`. All chosen to read on `parchment.0` without vibrati
 
 Any given screen should show **mihrab + parchment + one accent**. The accent is either selection-green, a single status color, or a single error-type color. If three accent colors appear in the same viewport you've broken the discipline — collapse two of them into a single category or move one offscreen.
 
+**Same-anchor gradients are allowed** (ADR 0010): a `mihrab.7 → mihrab.9 → mihrab.10` radial on the AppShell main, or a `parchment.0 → sage.1` linear on the sidebar panel, does not count as "another color" — both stops sit on the same ramp. This is the only sanctioned exception to "no gradients" (see §5 + §9). Cross-anchor gradients (mihrab → brick, parchment → honey) remain off-limits in the app-shell.
+
 ## 3. Typography
 
 | Role | Font | Weight | Size | Use |
@@ -76,11 +78,17 @@ Default card padding is `xl` (32px) for ceremonial surfaces; data-dense surfaces
 
 ## 5. Background treatment
 
-**Decision: animated silk on auth/landing/empty states only. App-shell screens get flat `mihrab.9`.**
+**Decision: animated silk on auth/landing/empty-of-everything moments only. App-shell screens get structural depth via same-anchor gradients (ADR 0010), not motion.**
 
-Why: the silk shader is the soul of the brand but it competes with the mushaf and with data-dense screens. Reserving it for entry points (login, splash, "no students yet" empty state) keeps it as a moment of arrival rather than ambient noise. App-shell screens stay readable and let the cream cards do the work.
+The silk shader is the soul of the brand but it competes with the mushaf and with data-dense screens. Reserving it for entry points (login, splash) keeps it as a moment of arrival rather than ambient noise.
 
-Implementation: build `<SilkBackground />` as a self-contained component (R3F + custom shader, parameters from the previous project) and render it conditionally via the route — not in `__root.tsx`. The mushaf renderer should sit on a paper-textured cream (`parchment.0` plus a subtle `<svg>` noise pattern at ~4% opacity) so it visually reads as a page, not as a card.
+App-shell depth budget (per ADR 0010):
+- `AppShell.main` may use a radial `mihrab.7 → mihrab.9 → mihrab.10` gradient.
+- `AppShell.navbar` may use a linear `parchment.0 → sage.1` gradient.
+- `AppShell.header` uses semi-transparent `parchment.0` with `backdrop-filter: blur(14px)`.
+- Component cards may use a single-anchor highlight gradient (e.g. `white → parchment.0` on inner cards) to give shadow + light.
+
+Implementation: `<SilkBackground />` is a self-contained R3F component (`apps/web/src/components/SilkBackground.tsx`) rendered only on `/login`, `/signup`, `/`. The mushaf renderer should sit on a paper-textured cream (`parchment.0` plus a subtle `<svg>` noise pattern at ~4% opacity) so it visually reads as a page, not as a card.
 
 ## 6. Component recipes
 
@@ -125,7 +133,16 @@ White-on-cream, tighter padding — used for the per-juz group cards nested insi
 Use Mantine `notifications.show` — the theme override paints the root `mihrab.9` with `parchment.0` text, pill-shaped.
 
 ### AppShell + sidebar
-Navbar uses `parchment.0` on the dark main area — a cream panel rising out of the mihrab ground. Nav items are unstyled buttons that show the same three-state selection pattern (rest → sage.0 hover → sage.1 selected with a 3px `mihrab.9` left border).
+Navbar uses a `parchment.0 → sage.1` gradient panel on the dark main area — a cream panel rising out of the mihrab ground. The brand wordmark lives at the top of the sidebar (Cairo `تَحفِيظ` + Playfair "Tahfeedh"), not in the header.
+
+Nav rows show three states via the `[data-active]` attribute on the link, with all states expressed in `AppSidebar.module.css`:
+- **rest:** transparent background, mihrab.9 text, icon at 65% opacity.
+- **hover:** sage.1 fill at 70%, icon at 95%, +2px translateX on hover.
+- **active:** sage.2 → sage.1 gradient fill, 3px mihrab.9 left border, icon at 100% and 1.08× scale, weight 700.
+
+Active state is driven by TanStack Router's `useMatchRoute`. Never set hover state via `onMouseEnter/Leave` in React — it fights the active state (ADR 0010).
+
+Bilingual rows: English label on the left, Arabic label on the right (Amiri, dimmed when inactive). Helps the sidebar carry the bilingual identity without an extra row.
 
 ### Mushaf overlay heatmap
 On a paper-cream substrate, Mantine's `yellow.3 → orange.6 → red.9` ramp loses contrast at the low end. Override to: `honey.3 → orange.6 → brick.8`. Test at 1.5× zoom on cream before shipping.

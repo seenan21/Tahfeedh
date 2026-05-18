@@ -1,4 +1,5 @@
 import { createFileRoute, redirect } from '@tanstack/react-router';
+import { BookOpen } from 'lucide-react';
 import { homeRouteForRole } from '../lib/auth';
 import { EmptyState } from '../components/EmptyState';
 
@@ -15,7 +16,9 @@ function MushafPage() {
     <EmptyState
       arabic="مصحفي"
       english="My Mushaf"
-      helper="The 604-page grid coloured by memorization status, with deep-dive into any page. Phase C."
+      icon={BookOpen}
+      tag="Phase C"
+      helper="The 604-page grid coloured by memorization status, with deep-dive into any page."
     />
   );
 }

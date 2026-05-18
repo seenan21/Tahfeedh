@@ -1119,9 +1119,9 @@ All steps run in **one Supabase transaction** via service role client (bypasses 
 ### 14.1 Layout
 
 Mantine `AppShell`:
-- Header (60px): app logo, user menu, role switcher (if dual-role)
-- Sidebar (left, collapsible on mobile): primary nav
-- Main content area
+- **Header (64px):** semi-transparent `parchment.0` with `backdrop-filter: blur(14px)`. Left: dot-style role badge. Right: user pill (gradient mihrab→sage avatar, name, email, chevron → dropdown with Settings / Sign out). Brand wordmark lives in the sidebar, not the header.
+- **Sidebar (268px, left, collapsible on mobile):** `parchment.0 → sage.1` gradient panel. Top: brand wordmark (Cairo `تَحفِيظ` + Playfair "Tahfeedh"). Then a section label, bilingual nav rows (English left / Amiri Arabic right), version footer. Active state driven by `useMatchRoute` + `[data-active]` attribute — never via React hover state (ADR 0010).
+- **Main:** radial `mihrab.7 → mihrab.9 → mihrab.10` gradient for depth. Cards float above with their own shadows.
 
 ### 14.2 Student navigation (sidebar)
 
@@ -1143,36 +1143,27 @@ When a teacher drills into a student, the layout switches to show that student's
 
 ### 14.4 Today view (the centerpiece)
 
-```
-┌─ Today ──────────────────────────────────┐
-│                                          │
-│  Streak: 12 days 🔥                       │
-│                                          │
-│  NEW LESSON (1 page)                     │
-│  ┌─────────────────────────────────────┐ │
-│  │ ▶ Page 48 — Surah Saad, ayahs 4–7  │ │
-│  │   Continue from where you left off │ │
-│  │                            [Start] │ │
-│  └─────────────────────────────────────┘ │
-│                                          │
-│  REVIEW (5 pages)                        │
-│  ┌─────────────────────────────────────┐ │
-│  │ ① Page 5  — Al-Baqarah              │ │
-│  │   Not reviewed in 11 sessions       │ │
-│  ├─────────────────────────────────────┤ │
-│  │ ② Page 45 — Saad                    │ │
-│  │   Recently memorized — keep fresh   │ │
-│  ├─────────────────────────────────────┤ │
-│  │ ③ Page 30 — Al-Baqarah              │ │
-│  │   Recurring errors detected         │ │
-│  ├─────────────────────────────────────┤ │
-│  │ ④ ⑤ ...                              │ │
-│  └─────────────────────────────────────┘ │
-│                                          │
-│  Status: 0 of 6 covered today            │
-│  [ Need a teacher? Share your code ]     │
-└──────────────────────────────────────────┘
-```
+Three vertical zones on top of the gradient `mihrab` main area:
+
+**1. Hero strip (no card, sits on the dark ground)**
+- Greeting line ("Good morning, Seena") with a sun/sunset/moon icon
+- Bilingual title: Cairo `اليوم` over Playfair "Today", both in parchment
+- Right side: streak badge — a glassy pill with a gradient flame icon (honey→brick when lit, neutral gray when 0), streak number, "day/days"
+
+**2. Progress card (cream `Card`, radius xl)**
+- 30-cell juz grid (one cell per juz) colored by aggregated page status:
+  - sage.7 = mastered, sage.4 = memorized, honey.4 = in-progress, white tint = untouched
+- Tooltip per cell ("Juz 12 — memorized"); hover lifts cell 2px
+- Western "completed / 30 juz" caption + Arabic-Indic counter `٣٠ / ٣٠` on the right
+- Legend chips below: memorized N · mastered N · in progress N · untouched N
+
+**3. Plan card (cream `Card`, radius xl)**
+- Header: "Today's plan" tag + "0 of N covered today" caption (real session-completion math lands in Phase D)
+- `Divider` labelled "New lesson" → `EmptySlotCard` with sage-gradient icon halo, badge chip pointing at the phase that wires it
+- `Divider` labelled "Revision queue" → `EmptySlotCard` with honey-gradient icon halo
+- Footer caption: "Tests are the only way pages move through the queues — start one whenever a witness is ready."
+
+For teachers in test mode, the "Start" / item rows are tappable to launch the test flow with that range pre-loaded.
 
 For teachers in test mode, the "Start" / item rows are tappable to launch the test flow with that range pre-loaded.
 

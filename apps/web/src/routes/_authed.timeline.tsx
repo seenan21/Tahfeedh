@@ -1,4 +1,5 @@
 import { createFileRoute, redirect } from '@tanstack/react-router';
+import { CalendarDays } from 'lucide-react';
 import { homeRouteForRole } from '../lib/auth';
 import { EmptyState } from '../components/EmptyState';
 
@@ -15,7 +16,9 @@ function TimelinePage() {
     <EmptyState
       arabic="السجل"
       english="Timeline"
-      helper="Your hifz timeline — daily sessions, errors over time, milestones. Lands in M7."
+      icon={CalendarDays}
+      tag="Phase E · M7"
+      helper="Your hifz timeline — daily sessions, errors over time, milestones."
     />
   );
 }

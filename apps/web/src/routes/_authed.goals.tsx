@@ -1,4 +1,5 @@
 import { createFileRoute, redirect } from '@tanstack/react-router';
+import { Target } from 'lucide-react';
 import { homeRouteForRole } from '../lib/auth';
 import { EmptyState } from '../components/EmptyState';
 
@@ -15,7 +16,9 @@ function GoalsPage() {
     <EmptyState
       arabic="الأهداف"
       english="Goals"
-      helper="Long-term hifz targets and QF Goals integration. Lands in M8."
+      icon={Target}
+      tag="Phase E · M8"
+      helper="Long-term hifz targets, paired with the Quran Foundation Goals API once OAuth lands."
     />
   );
 }

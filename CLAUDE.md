@@ -221,3 +221,23 @@ Then create `CHANGELOG.md` with this skeleton:
 ```
 
 Done. Move on to the actual work.
+
+---
+
+## Repository navigation
+
+For per-directory indexes, follow the table below. Each subdirectory has its own `CLAUDE.md` with a more detailed index of its files.
+
+| Path | What | When to read |
+|---|---|---|
+| `apps/` | The two deployable apps (`web`, `server`) | Building features |
+| `apps/web/` | Vite + React + Mantine + TanStack Router frontend | UI work |
+| `apps/server/` | Express + Supabase service-role backend | Endpoints, RLS-bypass writes, QF proxy |
+| `packages/shared/` | `@tahfeedh/shared` — types + Zod schemas used by both apps | Cross-app contracts |
+| `supabase/migrations/` | Numbered SQL migrations 0001–0013 | Schema, functions, RLS |
+| `scripts/` | Build scripts (mushaf data, index rebuild, fonts) | Regenerating static data |
+| `decisions/` | Architecture Decision Records (ADRs) | Looking up the "why" behind a build-time choice |
+| `DESIGN.md` | Master design doc — the constitution | High-level product/architecture context |
+| `DESIGN-SYSTEM.md` | Color tokens, typography, component recipes, bilingual rules | Visual decisions, theme work |
+| `Plan.Md` | Short anchor: where we are, phase progression | Returning to work after context clears |
+| `CHANGELOG.md` | `[Unreleased]` + milestone history | Recording changes per session |

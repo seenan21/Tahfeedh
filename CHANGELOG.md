@@ -14,6 +14,7 @@
 - Real 3-step onboarding flow: `Step1Path` (fresh / partial / complete), `Step2Capture` with juz grid + searchable surah list + partial-page picker, `Step3Sessions` with half-page support and Custom… input.
 - Today skeleton (DESIGN.md §14.4) — `StreakBadge` wired to the `daily_streak()` RPC (Western digits + flame icon), `JuzProgressBar` rendering completed/in-progress juz counts in Arabic-Indic numerals, and `EmptySlotCard` placeholders for new-lesson and review rows.
 - Visual polish: `SilkBackground` (R3F + custom shader) on `/login`, `/signup`, `/`; `BilingualHero` and `IntroHadith` components; user-menu dropdown in the header with sign-out, settings, role badge; Lucide icons on the sidebar; bilingual `EmptyState` replaces "Coming soon" cards on every stub route (ADR 0009).
+- App-shell modernization (ADR 0010): radial mihrab gradient on `AppShell.main`, `backdrop-filter: blur` glassy header, parchment→sage gradient sidebar with the brand wordmark moved inside it, bilingual nav rows (English left / Arabic right), three-state CSS module styling driven by `useMatchRoute` + `[data-active]` (fixes the hover-sticks bug). Today view rebuilt with a hero strip on the dark ground, a 30-cell juz grid colored by status, a gradient flame streak badge, and refined slot cards with colored icon halos. Empty-state hero pattern (88px iconHalo, tag chip, fade-in animation) on every stub route.
 
 ### Changed
 - `getCurrentUser` now returns `onboardingComplete`. Teachers always `true`; students read from `student_settings`.

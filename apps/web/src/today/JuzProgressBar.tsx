@@ -1,4 +1,4 @@
-import { Group, Progress, Skeleton, Stack, Text, Tooltip } from '@mantine/core';
+import { Group, Skeleton, Stack, Text, Tooltip } from '@mantine/core';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../lib/supabase';
 import { quranIndex } from '../data/quran-data';
@@ -10,93 +10,172 @@ interface JuzProgressBarProps {
 
 interface MemorizedPageRow {
   page_number: number;
+  status: 'in_progress' | 'memorized' | 'mastered';
 }
 
-async function fetchMemorizedPages(studentId: string): Promise<number[]> {
+type JuzStatus = 'mastered' | 'memorized' | 'in_progress' | 'untouched';
+
+async function fetchPages(studentId: string): Promise<MemorizedPageRow[]> {
   const { data, error } = await supabase
     .from('memorization_page')
-    .select('page_number')
-    .eq('student_id', studentId)
-    .in('status', ['memorized', 'mastered']);
+    .select('page_number, status')
+    .eq('student_id', studentId);
   if (error) throw error;
-  return ((data as MemorizedPageRow[] | null) ?? []).map((r) => r.page_number);
+  return (data as MemorizedPageRow[] | null) ?? [];
 }
 
-function pageToJuz(page: number): number | null {
-  for (const [juzStr, info] of Object.entries(quranIndex.juzs)) {
-    const [start, end] = info.pages;
-    if (page >= start && page <= end) return Number(juzStr);
-  }
-  return null;
-}
-
-function juzCompletion(pages: number[]): { complete: number; partial: number } {
-  const byJuz = new Map<number, number>();
-  for (const p of pages) {
-    const j = pageToJuz(p);
-    if (j === null) continue;
-    byJuz.set(j, (byJuz.get(j) ?? 0) + 1);
-  }
-  let complete = 0;
-  let partial = 0;
+function deriveJuzStatuses(rows: MemorizedPageRow[]): Map<number, JuzStatus> {
+  const result = new Map<number, JuzStatus>();
   for (let j = 1; j <= 30; j++) {
     const info = quranIndex.juzs[String(j)];
-    if (!info) continue;
+    if (!info) {
+      result.set(j, 'untouched');
+      continue;
+    }
     const [start, end] = info.pages;
     const juzLen = end - start + 1;
-    const count = byJuz.get(j) ?? 0;
-    if (count >= juzLen) complete += 1;
-    else if (count > 0) partial += 1;
+    let mastered = 0;
+    let memorized = 0;
+    let inProgress = 0;
+    for (const r of rows) {
+      if (r.page_number < start || r.page_number > end) continue;
+      if (r.status === 'mastered') mastered += 1;
+      else if (r.status === 'memorized') memorized += 1;
+      else if (r.status === 'in_progress') inProgress += 1;
+    }
+    const filled = mastered + memorized + inProgress;
+    if (mastered >= juzLen) result.set(j, 'mastered');
+    else if (mastered + memorized >= juzLen) result.set(j, 'memorized');
+    else if (filled > 0) result.set(j, 'in_progress');
+    else result.set(j, 'untouched');
   }
-  return { complete, partial };
+  return result;
 }
+
+const STATUS_COLORS: Record<JuzStatus, { bg: string; fg: string }> = {
+  mastered:    { bg: 'var(--mantine-color-sage-7)',   fg: 'var(--mantine-color-parchment-0)' },
+  memorized:   { bg: 'var(--mantine-color-sage-4)',   fg: 'var(--mantine-color-mihrab-9)' },
+  in_progress: { bg: 'var(--mantine-color-honey-4)',  fg: 'var(--mantine-color-mihrab-9)' },
+  untouched:   { bg: 'rgba(255,255,255,0.65)',        fg: 'rgba(21,53,30,0.45)' },
+};
+
+const STATUS_LABEL: Record<JuzStatus, string> = {
+  mastered:    'mastered',
+  memorized:   'memorized',
+  in_progress: 'in progress',
+  untouched:   'untouched',
+};
 
 export function JuzProgressBar({ studentId }: JuzProgressBarProps) {
   const { data, isLoading } = useQuery({
-    queryKey: ['memorized_pages', studentId],
-    queryFn: () => fetchMemorizedPages(studentId),
+    queryKey: ['memorization_pages', studentId],
+    queryFn: () => fetchPages(studentId),
     staleTime: 30_000,
   });
 
   if (isLoading) {
-    return <Skeleton height={40} radius="sm" />;
+    return <Skeleton height={72} radius="md" />;
   }
 
-  const pages = data ?? [];
-  const { complete, partial } = juzCompletion(pages);
-  const completePct = (complete / 30) * 100;
-  const partialPct = (partial / 30) * 100;
+  const rows = data ?? [];
+  const statuses = deriveJuzStatuses(rows);
+  const counts: Record<JuzStatus, number> = {
+    mastered: 0, memorized: 0, in_progress: 0, untouched: 0,
+  };
+  for (const s of statuses.values()) counts[s] += 1;
+
+  const completed = counts.mastered + counts.memorized;
 
   return (
-    <Stack gap={6}>
+    <Stack gap={10}>
       <Group justify="space-between" align="baseline">
-        <Text size="sm" c="dimmed">
-          Memorized
-        </Text>
         <Group gap={6} align="baseline">
-          <Text
-            component="span"
-            size="lg"
-            fw={700}
-            style={{ fontFamily: 'Amiri, serif', direction: 'rtl' }}
-          >
-            {toArabicIndic(complete)} / {toArabicIndic(30)}
+          <Text size="xs" tt="uppercase" c="dimmed" fw={700} lts={0.8}>
+            Hifz progress
           </Text>
-          <Text size="xs" c="dimmed">
-            juz
-          </Text>
+          <Text size="xs" c="dimmed">·</Text>
+          <Text size="xs" c="dimmed">{completed} of 30 juz</Text>
         </Group>
+        <Text
+          component="span"
+          fw={700}
+          style={{ fontFamily: 'Amiri, serif', direction: 'rtl', fontSize: 18 }}
+        >
+          {toArabicIndic(completed)} / {toArabicIndic(30)}
+        </Text>
       </Group>
-      <Tooltip
-        label={`${complete} complete · ${partial} in progress · ${30 - complete - partial} untouched`}
-        position="bottom"
-        withArrow
+
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(30, 1fr)',
+          gap: 4,
+        }}
       >
-        <Progress.Root size="lg" radius="xl">
-          <Progress.Section value={completePct} color="sage.7" />
-          <Progress.Section value={partialPct} color="honey.4" />
-        </Progress.Root>
-      </Tooltip>
+        {Array.from({ length: 30 }, (_, i) => {
+          const juz = i + 1;
+          const status = statuses.get(juz) ?? 'untouched';
+          const c = STATUS_COLORS[status];
+          return (
+            <Tooltip
+              key={juz}
+              label={`Juz ${juz} — ${STATUS_LABEL[status]}`}
+              position="top"
+              withArrow
+              openDelay={150}
+            >
+              <div
+                style={{
+                  aspectRatio: '1 / 1.4',
+                  borderRadius: 4,
+                  background: c.bg,
+                  color: c.fg,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: 10,
+                  fontWeight: 600,
+                  boxShadow:
+                    status === 'untouched'
+                      ? 'inset 0 0 0 1px rgba(21,53,30,0.06)'
+                      : '0 1px 2px rgba(21,53,30,0.18)',
+                  transition: 'transform 180ms cubic-bezier(0.4,0,0.2,1)',
+                  cursor: 'default',
+                }}
+                onMouseEnter={(e) => {
+                  (e.currentTarget as HTMLDivElement).style.transform = 'translateY(-2px)';
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLDivElement).style.transform = '';
+                }}
+              >
+                {juz}
+              </div>
+            </Tooltip>
+          );
+        })}
+      </div>
+
+      <Group gap="md" mt={4}>
+        <LegendDot color={STATUS_COLORS.memorized.bg} label={`Memorized ${counts.memorized}`} />
+        <LegendDot color={STATUS_COLORS.mastered.bg} label={`Mastered ${counts.mastered}`} />
+        <LegendDot color={STATUS_COLORS.in_progress.bg} label={`In progress ${counts.in_progress}`} />
+        <LegendDot color={STATUS_COLORS.untouched.bg} label={`Untouched ${counts.untouched}`} />
+      </Group>
     </Stack>
+  );
+}
+
+function LegendDot({ color, label }: { color: string; label: string }) {
+  return (
+    <Group gap={6} align="center">
+      <span
+        style={{
+          width: 10, height: 10, borderRadius: 3, background: color,
+          boxShadow: 'inset 0 0 0 1px rgba(21,53,30,0.08)',
+        }}
+      />
+      <Text size="xs" c="dimmed">{label}</Text>
+    </Group>
   );
 }

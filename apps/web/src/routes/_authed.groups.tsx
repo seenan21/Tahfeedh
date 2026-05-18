@@ -1,4 +1,5 @@
 import { createFileRoute, redirect } from '@tanstack/react-router';
+import { LayoutGrid } from 'lucide-react';
 import { homeRouteForRole } from '../lib/auth';
 import { EmptyState } from '../components/EmptyState';
 
@@ -15,7 +16,9 @@ function GroupsPage() {
     <EmptyState
       arabic="الحلقات"
       english="Groups"
-      helper="Class and halaqah management. Lands in M6."
+      icon={LayoutGrid}
+      tag="Phase E · M6"
+      helper="Class and halaqah management for teachers."
     />
   );
 }

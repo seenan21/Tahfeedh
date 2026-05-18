@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { Card, Stack, Text, Title } from '@mantine/core';
+import { EmptyState } from '../components/EmptyState';
 
 export const Route = createFileRoute('/_authed/tests')({
   component: TestsPage,
@@ -7,11 +7,10 @@ export const Route = createFileRoute('/_authed/tests')({
 
 function TestsPage() {
   return (
-    <Card maw={720} mx="auto">
-      <Stack>
-        <Title order={1}>Tests</Title>
-        <Text c="dimmed">Coming soon</Text>
-      </Stack>
-    </Card>
+    <EmptyState
+      arabic="الاختبارات"
+      english="Tests"
+      helper="Begin a guest-witnessed test or browse your test history. Shipping in Phase D."
+    />
   );
 }

@@ -12,7 +12,6 @@ import {
   Stack,
   Text,
   TextInput,
-  Title,
 } from '@mantine/core';
 import { useEffect, useRef, useState } from 'react';
 import type { UserRole } from '@tahfeedh/shared';
@@ -23,6 +22,9 @@ import {
   signOut,
   signUpWithRole,
 } from '../lib/auth';
+import { SilkBackground } from '../components/SilkBackground';
+import { BilingualHero } from '../components/BilingualHero';
+import { IntroHadith } from '../components/IntroHadith';
 
 export const Route = createFileRoute('/signup')({
   beforeLoad: async ({ context }) => {
@@ -107,67 +109,71 @@ function SignupPage() {
 
   return (
     <>
-      <Center mih="calc(100vh - 92px)">
-        <Card w={420} maw="100%">
-          <Stack>
-            <Title order={2}>Create your account</Title>
-            <Text c="dimmed" size="sm">
-              Tahfeedh tracks your hifz journey alongside your teacher.
-            </Text>
+      <SilkBackground />
+      <Center mih="100vh" p="md" pos="relative" style={{ zIndex: 1 }}>
+        <Stack align="center" gap="xl" maw={560} w="100%">
+          <IntroHadith />
+          <Card w={460} maw="100%">
+            <Stack>
+              <BilingualHero arabic="ابدأ رحلتك" english="Begin your journey" />
+              <Text c="dimmed" size="sm" ta="center">
+                Tahfeedh tracks your hifz journey alongside your teacher.
+              </Text>
 
-            <form onSubmit={form.onSubmit(handleSubmit)}>
-              <Stack>
-                <TextInput
-                  label="Name"
-                  placeholder="What should we call you?"
-                  required
-                  {...form.getInputProps('displayName')}
-                />
-                <TextInput
-                  label="Email"
-                  type="email"
-                  autoComplete="email"
-                  required
-                  {...form.getInputProps('email')}
-                />
-                <PasswordInput
-                  label="Password"
-                  autoComplete="new-password"
-                  required
-                  {...form.getInputProps('password')}
-                />
+              <form onSubmit={form.onSubmit(handleSubmit)}>
+                <Stack>
+                  <TextInput
+                    label="Name"
+                    placeholder="What should we call you?"
+                    required
+                    {...form.getInputProps('displayName')}
+                  />
+                  <TextInput
+                    label="Email"
+                    type="email"
+                    autoComplete="email"
+                    required
+                    {...form.getInputProps('email')}
+                  />
+                  <PasswordInput
+                    label="Password"
+                    autoComplete="new-password"
+                    required
+                    {...form.getInputProps('password')}
+                  />
 
-                <Radio.Group
-                  label="I am a..."
-                  required
-                  {...form.getInputProps('role')}
-                >
-                  <Group mt="xs" gap="lg">
-                    <Radio value="student" label="Student" />
-                    <Radio value="teacher" label="Teacher" />
-                  </Group>
-                </Radio.Group>
+                  <Radio.Group
+                    label="I am a..."
+                    required
+                    {...form.getInputProps('role')}
+                  >
+                    <Group mt="xs" gap="lg">
+                      <Radio value="student" label="Student" />
+                      <Radio value="teacher" label="Teacher" />
+                    </Group>
+                  </Radio.Group>
 
-                {submitError && (
-                  <Text c="red" size="sm">
-                    {submitError}
+                  {submitError && (
+                    <Text c="red" size="sm">
+                      {submitError}
+                    </Text>
+                  )}
+
+                  <Button type="submit" loading={submitting} fullWidth color="mihrab" size="lg">
+                    Create account
+                  </Button>
+
+                  <Text size="sm" ta="center" c="dimmed">
+                    Already have an account?{' '}
+                    <Anchor component={Link} to="/login">
+                      Log in
+                    </Anchor>
                   </Text>
-                )}
-
-                <Button type="submit" loading={submitting} fullWidth>
-                  Create account
-                </Button>
-
-                <Text size="sm" ta="center" c="dimmed">
-                  Already have an account?{' '}
-                  <Anchor component={Link} to="/login">
-                    Log in
-                  </Anchor>
-                </Text>
-              </Stack>
-            </form>
-          </Stack>
-        </Card>
+                </Stack>
+              </form>
+            </Stack>
+          </Card>
+        </Stack>
       </Center>
 
       <Modal

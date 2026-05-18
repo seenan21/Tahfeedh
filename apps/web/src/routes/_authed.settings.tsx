@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { Card, Stack, Text, Title } from '@mantine/core';
+import { EmptyState } from '../components/EmptyState';
 
 export const Route = createFileRoute('/_authed/settings')({
   component: SettingsPage,
@@ -7,11 +7,10 @@ export const Route = createFileRoute('/_authed/settings')({
 
 function SettingsPage() {
   return (
-    <Card maw={720} mx="auto">
-      <Stack>
-        <Title order={1}>Settings</Title>
-        <Text c="dimmed">Coming soon</Text>
-      </Stack>
-    </Card>
+    <EmptyState
+      arabic="الإعدادات"
+      english="Settings"
+      helper="Daily capacity, completed-Qur'an flag, invite code, Edit Memorization, profile. Phase C onward."
+    />
   );
 }

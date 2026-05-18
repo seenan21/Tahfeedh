@@ -1,6 +1,6 @@
 import { createFileRoute, redirect } from '@tanstack/react-router';
-import { Card, Stack, Text, Title } from '@mantine/core';
 import { homeRouteForRole } from '../lib/auth';
+import { EmptyState } from '../components/EmptyState';
 
 export const Route = createFileRoute('/_authed/groups')({
   beforeLoad: ({ context }) => {
@@ -12,11 +12,10 @@ export const Route = createFileRoute('/_authed/groups')({
 
 function GroupsPage() {
   return (
-    <Card maw={720} mx="auto">
-      <Stack>
-        <Title order={1}>Groups</Title>
-        <Text c="dimmed">Coming soon</Text>
-      </Stack>
-    </Card>
+    <EmptyState
+      arabic="الحلقات"
+      english="Groups"
+      helper="Class and halaqah management. Lands in M6."
+    />
   );
 }

@@ -8,17 +8,18 @@
 
 ## Where we are
 
-- **M1 (Foundation):** done — monorepo, Vite+Mantine, Express, Supabase project, env wiring. Migrations 0001–0012 applied (10 baseline + 0011 ADR-0004 schema delta + 0012 `onboarding_complete`). Auth (signup with role, login, sign-out) wired.
-- **Phase A:** done — `_authed` layout route gates on auth + onboarding, AppShell with role-aware sidebar, stub routes for all sidebar items, onboarding stub flips the gate.
+- **M1 (Foundation):** done — monorepo, Vite+Mantine, Express, Supabase project, env wiring. Migrations 0001–0013 applied. Auth (signup with role, login, sign-out) wired.
+- **Phase A:** done — `_authed` layout route gates on auth + onboarding, AppShell with role-aware sidebar, stub routes for all sidebar items, onboarding stub flipped the gate.
+- **Phase B:** done — half-page schema (0013) + `commit_onboarding` SQL fn, derived `quran-index.json` artifact, `POST /api/onboarding/finish` endpoint, real 3-step onboarding flow (juz grid + searchable surah list + partial-page picker + half-page session-size), Today skeleton (streak + juz-progress + empty slots), visual polish (SilkBackground on auth, bilingual hero, user-menu dropdown, Lucide sidebar icons, bilingual EmptyState on every stub route).
 - **M2 (Mushaf), data half:** done — 604 per-page JSON files, metadata.json, 604 page-scoped QPC V2 fonts auto-loaded via generated CSS, deploy wiring (`npm run build:web`).
 - **M2 (Mushaf), components half:** not started — no `<MushafPage />`, no grid view yet.
-- **Design surface:** stable. Latest ADRs: 0002 (data source: api.quran.com v4), 0003 (per-page fonts), 0004 (guest-witnessed tests), 0005 (`_authed` layout route).
+- **Design surface:** stable. Latest ADRs: 0006 (NUMERIC half-page), 0007 (quran-index artifact), 0008 (onboarding bulk-write via Express + SQL fn), 0009 (SilkBackground entry-points only).
 
 ---
 
-## Phase A — Foundation finish + skeleton
+## Phase A — Foundation finish + skeleton ✅ Complete (2026-05-18)
 
-Closes the M1 leftovers and gets a clickable shell on screen.
+Closed the M1 leftovers and got a clickable shell on screen. Captured as ADR 0005 + migrations 0011/0012. See CHANGELOG `[Unreleased]` for the diff list.
 
 1. Write & run **migrations 1–8** (all tables, all enums incl. new `test_mode`, all helper functions, RLS).
 2. **Supabase auth** — signup (with role selector), login, session bootstrap, sign-out.
@@ -31,12 +32,11 @@ Closes the M1 leftovers and gets a clickable shell on screen.
 
 ---
 
-## Phase B — Onboarding + Today skeleton (M3 first half)
+## Phase B — Onboarding + Today skeleton (M3 first half) ✅ Complete (2026-05-18)
 
-5. **Onboarding** — Step 1 (path), Step 2 (juz/surah mode), Step 3 (session size). Bulk-write memorization rows on finish.
-6. **Today view skeleton** — streak (Western numerals), juz-progress (Arabic-Indic), empty new-lesson + review slots.
+Closed M3's first half. ADRs 0006–0009 captured. Migration 0013, `quran-index.json`, `POST /api/onboarding/finish`, full 3-step onboarding flow (juz grid + searchable surah list + partial-page picker + half-page support), Today skeleton (streak + juz-progress + empty slots), and the auth-page + sidebar + stub-route polish all shipped together. See CHANGELOG `[Unreleased]` for the diff list.
 
-**Demoable:** fresh signup → onboarding → Today shows the right placeholders.
+**Demoable:** fresh signup → SilkBackground on auth → onboarding 3 steps → Today shows real streak + juz progress in Arabic-Indic + bilingual empty cards; every sidebar item renders a polished bilingual EmptyState.
 
 ---
 

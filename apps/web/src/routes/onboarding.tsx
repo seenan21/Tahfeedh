@@ -1,8 +1,13 @@
 import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router';
-import { Button, Card, Center, Stack, Text, Title } from '@mantine/core';
-import { useState } from 'react';
+import { Card, Center, Stack, Text } from '@mantine/core';
+import { useReducer } from 'react';
 import { getCurrentUser, formatAuthError } from '../lib/auth';
-import { supabase } from '../lib/supabase';
+import { apiFetch } from '../api/client';
+import { BilingualHero } from '../components/BilingualHero';
+import { Step1Path } from '../onboarding/Step1Path';
+import { Step2Capture } from '../onboarding/Step2Capture';
+import { Step3Sessions } from '../onboarding/Step3Sessions';
+import { initialState, reducer, toFinishPayload, type OnboardingState } from '../onboarding/state';
 
 export const Route = createFileRoute('/onboarding')({
   beforeLoad: async ({ context }) => {
@@ -15,52 +20,61 @@ export const Route = createFileRoute('/onboarding')({
     if (user.onboardingComplete) throw redirect({ to: '/today' });
     return { user };
   },
-  component: OnboardingStub,
+  component: OnboardingPage,
 });
 
-function OnboardingStub() {
-  const { user, queryClient } = Route.useRouteContext();
+function OnboardingPage() {
+  const { queryClient } = Route.useRouteContext();
   const navigate = useNavigate();
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [state, dispatch] = useReducer(reducer, initialState);
 
-  async function handleComplete() {
-    setSubmitting(true);
-    setError(null);
+  async function handleFinish(s: OnboardingState) {
+    dispatch({ type: 'SET_SUBMITTING', submitting: true });
+    dispatch({ type: 'SET_ERROR', error: null });
     try {
-      const { error: updateError } = await supabase
-        .from('student_settings')
-        .update({ onboarding_complete: true })
-        .eq('student_id', user.id);
-      if (updateError) throw updateError;
+      await apiFetch('/api/onboarding/finish', {
+        method: 'POST',
+        body: JSON.stringify(toFinishPayload(s)),
+      });
       await queryClient.invalidateQueries({ queryKey: ['session'] });
       navigate({ to: '/today' });
     } catch (err) {
-      setError(formatAuthError(err));
+      dispatch({ type: 'SET_ERROR', error: formatAuthError(err) });
     } finally {
-      setSubmitting(false);
+      dispatch({ type: 'SET_SUBMITTING', submitting: false });
     }
   }
 
   return (
     <Center mih="100vh" p="md">
-      <Card w={520} maw="100%">
-        <Stack>
-          <Title order={1}>Welcome to Tahfeedh</Title>
-          <Text>
-            The full onboarding flow (memorization state, juz/surah picker, daily session size)
-            lands in the next phase. For now, mark onboarding complete to continue to Today.
-          </Text>
-          {error && (
-            <Text c="red" size="sm">
-              {error}
-            </Text>
+      <Stack maw={680} w="100%" gap="lg">
+        <BilingualHero arabic="رحلتك تبدأ هنا" english="Your journey starts here" />
+        <Card>
+          {state.step === 1 && (
+            <Step1Path
+              path={state.path}
+              onSelect={(path) => dispatch({ type: 'SET_PATH', path })}
+              onContinue={() => dispatch({ type: 'NEXT' })}
+            />
           )}
-          <Button onClick={handleComplete} loading={submitting} size="lg">
-            Mark onboarding complete
-          </Button>
-        </Stack>
-      </Card>
+          {state.step === 2 && (
+            <Step2Capture
+              state={state}
+              dispatch={dispatch}
+              onBack={() => dispatch({ type: 'BACK' })}
+              onContinue={() => dispatch({ type: 'NEXT' })}
+            />
+          )}
+          {state.step === 3 && (
+            <Step3Sessions
+              state={state}
+              dispatch={dispatch}
+              onBack={() => dispatch({ type: 'BACK' })}
+              onFinish={() => handleFinish(state)}
+            />
+          )}
+        </Card>
+      </Stack>
     </Center>
   );
 }

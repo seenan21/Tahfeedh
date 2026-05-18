@@ -67,6 +67,36 @@ export interface MushafPageData {
   lines: MushafLine[];
 }
 
+// Quran index (emitted by scripts/build-quran-data.ts → quran-index.json)
+
+export interface PageIndexEntry {
+  surah_start: number;
+  ayah_start: number;
+  surah_end: number;
+  ayah_end: number;
+}
+
+export interface SurahIndexEntry {
+  start_page: number;
+  end_page: number;
+  ayah_count: number;
+  // Sparse map: ayah_number → first page on which that ayah appears.
+  first_ayah_page_map: Record<string, number>;
+}
+
+export interface JuzIndexEntry {
+  pages: [number, number];
+  // Surah number → [first_ayah, last_ayah] within this juz.
+  ayah_ranges: Record<string, [number, number]>;
+}
+
+export interface QuranIndex {
+  pages: Record<string, PageIndexEntry>;
+  surahs: Record<string, SurahIndexEntry>;
+  juzs: Record<string, JuzIndexEntry>;
+  total_pages: number;
+}
+
 // QF API response shapes (minimal — expand as needed)
 
 export interface QfChapter {

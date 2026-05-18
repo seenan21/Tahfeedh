@@ -1,6 +1,6 @@
 import { createFileRoute, redirect } from '@tanstack/react-router';
-import { Card, Stack, Text, Title } from '@mantine/core';
 import { homeRouteForRole } from '../lib/auth';
+import { EmptyState } from '../components/EmptyState';
 
 export const Route = createFileRoute('/_authed/mushaf')({
   beforeLoad: ({ context }) => {
@@ -12,11 +12,10 @@ export const Route = createFileRoute('/_authed/mushaf')({
 
 function MushafPage() {
   return (
-    <Card maw={720} mx="auto">
-      <Stack>
-        <Title order={1}>My Mushaf</Title>
-        <Text c="dimmed">Coming soon</Text>
-      </Stack>
-    </Card>
+    <EmptyState
+      arabic="مصحفي"
+      english="My Mushaf"
+      helper="The 604-page grid coloured by memorization status, with deep-dive into any page. Phase C."
+    />
   );
 }

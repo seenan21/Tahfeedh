@@ -16,6 +16,10 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(HERE, '..');
 const OUT_PAGES = join(ROOT, 'apps', 'web', 'src', 'data', 'pages');
 const OUT_META = join(ROOT, 'apps', 'web', 'src', 'data', 'metadata.json');
+const OUT_INDEX_PATHS = [
+  join(ROOT, 'apps', 'web', 'src', 'data', 'quran-index.json'),
+  join(ROOT, 'apps', 'server', 'src', 'data', 'quran-index.json'),
+];
 
 const API = 'https://api.quran.com/api/v4';
 const TOTAL_PAGES = 604;
@@ -279,6 +283,15 @@ async function main(): Promise<void> {
   console.log(`[quran-data] fetching ${TOTAL_PAGES} pages @ concurrency ${CONCURRENCY}…`);
   const pageNumbers = Array.from({ length: TOTAL_PAGES }, (_, i) => i + 1);
 
+  // Collected during page fetch and reused by the index builder below.
+  // pageBoundaries[n] = first & last (surah,ayah) on page n.
+  // ayahFirstPage[`${surah}:${ayah}`] = first page on which the ayah appears.
+  const pageBoundaries = new Map<number, {
+    surah_start: number; ayah_start: number;
+    surah_end: number; ayah_end: number;
+  }>();
+  const ayahFirstPage = new Map<string, number>();
+
   let writeFailures = 0;
   await mapLimit(
     pageNumbers,
@@ -288,6 +301,22 @@ async function main(): Promise<void> {
         const verses = await fetchPage(n);
         const page = buildPage(n, verses, chapters);
         await writeFile(join(OUT_PAGES, `${n}.json`), JSON.stringify(page));
+
+        if (verses.length > 0) {
+          const first = verses[0];
+          const last = verses[verses.length - 1];
+          const [fs, fa] = first.verse_key.split(':').map(Number);
+          const [ls, la] = last.verse_key.split(':').map(Number);
+          pageBoundaries.set(n, {
+            surah_start: fs, ayah_start: fa,
+            surah_end: ls,   ayah_end: la,
+          });
+          for (const v of verses) {
+            const key = v.verse_key;
+            const prior = ayahFirstPage.get(key);
+            if (prior === undefined || n < prior) ayahFirstPage.set(key, n);
+          }
+        }
       } catch (err) {
         writeFailures++;
         console.error(`[quran-data] page ${n} failed:`, (err as Error).message);
@@ -318,6 +347,70 @@ async function main(): Promise<void> {
     generated_at: new Date().toISOString(),
   };
   await writeFile(OUT_META, JSON.stringify(metadata, null, 2));
+
+  // ----- quran-index.json -----------------------------------------------------
+  // Derived lookup used by Phase B onboarding (juz/surah pickers,
+  // partial-page picker) and Today's juz-progress bar. Kept here so the
+  // pages, metadata, and index always come out in sync.
+
+  const pages: Record<string, {
+    surah_start: number; ayah_start: number;
+    surah_end: number; ayah_end: number;
+  }> = {};
+  for (const [n, b] of pageBoundaries) pages[String(n)] = b;
+
+  const surahs: Record<string, {
+    start_page: number; end_page: number;
+    ayah_count: number;
+    first_ayah_page_map: Record<string, number>;
+  }> = {};
+  for (const c of chaptersArr) {
+    const firstAyahPageMap: Record<string, number> = {};
+    for (let a = 1; a <= c.verses_count; a++) {
+      const page = ayahFirstPage.get(`${c.id}:${a}`);
+      if (page !== undefined) firstAyahPageMap[String(a)] = page;
+    }
+    surahs[String(c.id)] = {
+      start_page: c.pages[0],
+      end_page: c.pages[1],
+      ayah_count: c.verses_count,
+      first_ayah_page_map: firstAyahPageMap,
+    };
+  }
+
+  const juzsIndex: Record<string, {
+    pages: [number, number];
+    ayah_ranges: Record<string, [number, number]>;
+  }> = {};
+  for (const j of juzs) {
+    const ayahRanges: Record<string, [number, number]> = {};
+    let pageMin = Number.POSITIVE_INFINITY;
+    let pageMax = 0;
+    for (const [surahStr, range] of Object.entries(j.verse_mapping)) {
+      const [startStr, endStr] = range.split('-');
+      const start = Number(startStr);
+      const end = Number(endStr ?? startStr);
+      ayahRanges[surahStr] = [start, end];
+      const startPage = ayahFirstPage.get(`${surahStr}:${start}`);
+      const endPage = ayahFirstPage.get(`${surahStr}:${end}`);
+      if (startPage !== undefined && startPage < pageMin) pageMin = startPage;
+      if (endPage !== undefined && endPage > pageMax) pageMax = endPage;
+    }
+    juzsIndex[String(j.juz_number)] = {
+      pages: [pageMin === Number.POSITIVE_INFINITY ? 0 : pageMin, pageMax],
+      ayah_ranges: ayahRanges,
+    };
+  }
+
+  const indexJson = JSON.stringify(
+    { pages, surahs, juzs: juzsIndex, total_pages: TOTAL_PAGES },
+    null,
+    2,
+  );
+  for (const out of OUT_INDEX_PATHS) {
+    await mkdir(dirname(out), { recursive: true });
+    await writeFile(out, indexJson);
+  }
 
   console.log(`[quran-data] done. wrote ${TOTAL_PAGES - writeFailures}/${TOTAL_PAGES} pages.`);
   if (writeFailures > 0) {

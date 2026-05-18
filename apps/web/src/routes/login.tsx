@@ -9,10 +9,12 @@ import {
   Stack,
   Text,
   TextInput,
-  Title,
 } from '@mantine/core';
 import { useState } from 'react';
 import { formatAuthError, getCurrentUser, landingRouteForUser, signIn } from '../lib/auth';
+import { SilkBackground } from '../components/SilkBackground';
+import { BilingualHero } from '../components/BilingualHero';
+import { IntroHadith } from '../components/IntroHadith';
 
 export const Route = createFileRoute('/login')({
   beforeLoad: async ({ context }) => {
@@ -64,50 +66,56 @@ function LoginPage() {
   }
 
   return (
-    <Center mih="calc(100vh - 92px)">
-      <Card w={420} maw="100%">
-        <Stack>
-          <Title order={2}>Welcome back</Title>
-          <Text c="dimmed" size="sm">
-            Log in to pick up where you left off.
-          </Text>
-
-          <form onSubmit={form.onSubmit(handleSubmit)}>
+    <>
+      <SilkBackground />
+      <Center mih="100vh" p="md" pos="relative" style={{ zIndex: 1 }}>
+        <Stack align="center" gap="xl" maw={560} w="100%">
+          <IntroHadith />
+          <Card w={420} maw="100%">
             <Stack>
-              <TextInput
-                label="Email"
-                type="email"
-                autoComplete="email"
-                required
-                {...form.getInputProps('email')}
-              />
-              <PasswordInput
-                label="Password"
-                autoComplete="current-password"
-                required
-                {...form.getInputProps('password')}
-              />
-
-              {submitError && (
-                <Text c="red" size="sm">
-                  {submitError}
-                </Text>
-              )}
-
-              <Button type="submit" loading={submitting} fullWidth>
-                Log in
-              </Button>
-
-              <Text size="sm" ta="center" c="dimmed">
-                New here?{' '}
-                <Anchor component={Link} to="/signup">
-                  Create an account
-                </Anchor>
+              <BilingualHero arabic="أهلاً بعودتك" english="Welcome back" />
+              <Text c="dimmed" size="sm" ta="center">
+                Log in to pick up where you left off.
               </Text>
+
+              <form onSubmit={form.onSubmit(handleSubmit)}>
+                <Stack>
+                  <TextInput
+                    label="Email"
+                    type="email"
+                    autoComplete="email"
+                    required
+                    {...form.getInputProps('email')}
+                  />
+                  <PasswordInput
+                    label="Password"
+                    autoComplete="current-password"
+                    required
+                    {...form.getInputProps('password')}
+                  />
+
+                  {submitError && (
+                    <Text c="red" size="sm">
+                      {submitError}
+                    </Text>
+                  )}
+
+                  <Button type="submit" loading={submitting} fullWidth color="mihrab" size="lg">
+                    Log in
+                  </Button>
+
+                  <Text size="sm" ta="center" c="dimmed">
+                    New here?{' '}
+                    <Anchor component={Link} to="/signup">
+                      Create an account
+                    </Anchor>
+                  </Text>
+                </Stack>
+              </form>
             </Stack>
-          </form>
+          </Card>
         </Stack>
-      </Card>
-    </Center>
+      </Center>
+    </>
   );
 }

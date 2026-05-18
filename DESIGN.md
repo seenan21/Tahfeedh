@@ -394,7 +394,7 @@ For partial-page in-progress memorization:
 
 For "whole Qur'an" path:
 - Same as full memorization for pages 1–604
-- `student_settings.has_completed_quran = true`
+- `app_user.has_completed_quran = true` (the flag lives on the identity row, not `student_settings` — see ADR 0008)
 
 For Step 3:
 - `student_settings.pages_per_session_new = [chosen value]` (NUMERIC, allows 0.5)

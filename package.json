@@ -15,6 +15,7 @@
     "build:assets": "npm run build:quran-data && npm run download:fonts",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "build:quran-data": "tsx scripts/build-quran-data.ts",
+    "build:quran-index": "tsx scripts/build-quran-index.ts",
     "download:fonts": "tsx scripts/download-fonts.ts",
     "seed": "tsx scripts/seed.ts"
   },

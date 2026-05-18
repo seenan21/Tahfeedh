@@ -17,3 +17,35 @@ export const testRangeSchema = z.discriminatedUnion('type', [
 ]);
 
 export const testRangesSchema = z.array(testRangeSchema).min(1);
+
+// Onboarding finish request (Phase B, DESIGN.md §6.3).
+// Client sends user selections; the server expands them against the static
+// quran index and calls the commit_onboarding SQL function.
+
+export const onboardingFinishSchema = z.object({
+  path: z.enum(['fresh', 'partial', 'complete']),
+  selections: z.object({
+    juzs: z.array(z.number().int().min(1).max(30)).default([]),
+    surahs: z
+      .array(
+        z.object({
+          surah: z.number().int().min(1).max(114),
+          upToAyah: z.number().int().min(1).optional(),
+        }),
+      )
+      .default([]),
+    inProgress: z
+      .object({
+        juz: z.number().int().min(1).max(30),
+        surah: z.number().int().min(1).max(114),
+        ayah: z.number().int().min(1),
+      })
+      .optional(),
+  }),
+  session: z.object({
+    newPerDay: z.number().min(0.5).max(20),
+    revisionPerDay: z.number().min(0).max(20),
+  }),
+});
+
+export type OnboardingFinishInput = z.infer<typeof onboardingFinishSchema>;

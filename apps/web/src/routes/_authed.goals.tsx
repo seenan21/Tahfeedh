@@ -1,6 +1,6 @@
 import { createFileRoute, redirect } from '@tanstack/react-router';
-import { Card, Stack, Text, Title } from '@mantine/core';
 import { homeRouteForRole } from '../lib/auth';
+import { EmptyState } from '../components/EmptyState';
 
 export const Route = createFileRoute('/_authed/goals')({
   beforeLoad: ({ context }) => {
@@ -12,11 +12,10 @@ export const Route = createFileRoute('/_authed/goals')({
 
 function GoalsPage() {
   return (
-    <Card maw={720} mx="auto">
-      <Stack>
-        <Title order={1}>Goals</Title>
-        <Text c="dimmed">Coming soon</Text>
-      </Stack>
-    </Card>
+    <EmptyState
+      arabic="الأهداف"
+      english="Goals"
+      helper="Long-term hifz targets and QF Goals integration. Lands in M8."
+    />
   );
 }

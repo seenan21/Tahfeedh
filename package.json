@@ -11,8 +11,11 @@
     "dev:server": "npm run dev --workspace=@tahfeedh/server",
     "dev": "npm-run-all --parallel dev:web dev:server",
     "build": "npm run build --workspaces --if-present",
+    "build:web": "npm run build:assets && npm run build --workspace=@tahfeedh/web",
+    "build:assets": "npm run build:quran-data && npm run download:fonts",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "build:quran-data": "tsx scripts/build-quran-data.ts",
+    "download:fonts": "tsx scripts/download-fonts.ts",
     "seed": "tsx scripts/seed.ts"
   },
   "devDependencies": {

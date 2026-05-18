@@ -6,6 +6,7 @@ import {
   Card,
   Center,
   Group,
+  Modal,
   PasswordInput,
   Radio,
   Stack,
@@ -13,9 +14,14 @@ import {
   TextInput,
   Title,
 } from '@mantine/core';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { UserRole } from '@tahfeedh/shared';
-import { getCurrentUser, homeRouteForRole, signUpWithRole } from '../lib/auth';
+import {
+  formatAuthError,
+  getCurrentUser,
+  signOut,
+  signUpWithRole,
+} from '../lib/auth';
 
 export const Route = createFileRoute('/signup')({
   beforeLoad: async ({ context }) => {
@@ -23,7 +29,9 @@ export const Route = createFileRoute('/signup')({
       queryKey: ['session'],
       queryFn: getCurrentUser,
     });
-    if (user) throw redirect({ to: homeRouteForRole(user.role) });
+    if (user) {
+      throw redirect({ to: user.role === 'student' ? '/today' : '/students' });
+    }
   },
   component: SignupPage,
 });
@@ -35,11 +43,17 @@ interface FormValues {
   role: UserRole;
 }
 
+const REDIRECT_SECONDS = 5;
+const DUPLICATE_PATTERNS = /already registered|user_already_exists|already exists|duplicate/i;
+
 function SignupPage() {
   const navigate = useNavigate();
   const { queryClient } = Route.useRouteContext();
+
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [outcome, setOutcome] = useState<'success' | 'duplicate' | null>(null);
+  const [countdown, setCountdown] = useState(REDIRECT_SECONDS);
 
   const form = useForm<FormValues>({
     initialValues: { email: '', password: '', displayName: '', role: 'student' },
@@ -50,82 +64,142 @@ function SignupPage() {
     },
   });
 
+  useEffect(() => {
+    if (outcome !== 'success') return;
+    if (countdown <= 0) {
+      navigate({ to: '/login' });
+      return;
+    }
+    const t = setTimeout(() => setCountdown((c) => c - 1), 1000);
+    return () => clearTimeout(t);
+  }, [outcome, countdown, navigate]);
+
   async function handleSubmit(values: FormValues) {
     setSubmitError(null);
     setSubmitting(true);
     try {
-      const user = await signUpWithRole(values);
+      await signUpWithRole(values);
+      // Sign out so the user logs in fresh — clearer mental model and lets us
+      // surface the success modal before dropping them into the app.
+      await signOut();
       await queryClient.invalidateQueries({ queryKey: ['session'] });
-      navigate({ to: homeRouteForRole(user.role) });
+      setCountdown(REDIRECT_SECONDS);
+      setOutcome('success');
     } catch (err) {
-      setSubmitError(err instanceof Error ? err.message : String(err));
+      const msg = formatAuthError(err);
+      if (DUPLICATE_PATTERNS.test(msg)) {
+        setOutcome('duplicate');
+      } else {
+        setSubmitError(msg);
+      }
     } finally {
       setSubmitting(false);
     }
   }
 
   return (
-    <Center mih="calc(100vh - 92px)">
-      <Card w={420} maw="100%">
-        <Stack>
-          <Title order={2}>Create your account</Title>
-          <Text c="dimmed" size="sm">
-            Tahfeedh tracks your hifz journey alongside your teacher.
-          </Text>
+    <>
+      <Center mih="calc(100vh - 92px)">
+        <Card w={420} maw="100%">
+          <Stack>
+            <Title order={2}>Create your account</Title>
+            <Text c="dimmed" size="sm">
+              Tahfeedh tracks your hifz journey alongside your teacher.
+            </Text>
 
-          <form onSubmit={form.onSubmit(handleSubmit)}>
-            <Stack>
-              <TextInput
-                label="Name"
-                placeholder="What should we call you?"
-                required
-                {...form.getInputProps('displayName')}
-              />
-              <TextInput
-                label="Email"
-                type="email"
-                autoComplete="email"
-                required
-                {...form.getInputProps('email')}
-              />
-              <PasswordInput
-                label="Password"
-                autoComplete="new-password"
-                required
-                {...form.getInputProps('password')}
-              />
+            <form onSubmit={form.onSubmit(handleSubmit)}>
+              <Stack>
+                <TextInput
+                  label="Name"
+                  placeholder="What should we call you?"
+                  required
+                  {...form.getInputProps('displayName')}
+                />
+                <TextInput
+                  label="Email"
+                  type="email"
+                  autoComplete="email"
+                  required
+                  {...form.getInputProps('email')}
+                />
+                <PasswordInput
+                  label="Password"
+                  autoComplete="new-password"
+                  required
+                  {...form.getInputProps('password')}
+                />
 
-              <Radio.Group
-                label="I am a..."
-                required
-                {...form.getInputProps('role')}
-              >
-                <Group mt="xs" gap="lg">
-                  <Radio value="student" label="Student" />
-                  <Radio value="teacher" label="Teacher" />
-                </Group>
-              </Radio.Group>
+                <Radio.Group
+                  label="I am a..."
+                  required
+                  {...form.getInputProps('role')}
+                >
+                  <Group mt="xs" gap="lg">
+                    <Radio value="student" label="Student" />
+                    <Radio value="teacher" label="Teacher" />
+                  </Group>
+                </Radio.Group>
 
-              {submitError && (
-                <Text c="red" size="sm">
-                  {submitError}
+                {submitError && (
+                  <Text c="red" size="sm">
+                    {submitError}
+                  </Text>
+                )}
+
+                <Button type="submit" loading={submitting} fullWidth>
+                  Create account
+                </Button>
+
+                <Text size="sm" ta="center" c="dimmed">
+                  Already have an account?{' '}
+                  <Anchor component={Link} to="/login">
+                    Log in
+                  </Anchor>
                 </Text>
-              )}
+              </Stack>
+            </form>
+          </Stack>
+        </Card>
+      </Center>
 
-              <Button type="submit" loading={submitting} fullWidth>
-                Create account
-              </Button>
-
-              <Text size="sm" ta="center" c="dimmed">
-                Already have an account?{' '}
-                <Anchor component={Link} to="/login">
-                  Log in
-                </Anchor>
-              </Text>
-            </Stack>
-          </form>
+      <Modal
+        opened={outcome === 'success'}
+        onClose={() => navigate({ to: '/login' })}
+        title="You're all set"
+        withCloseButton={false}
+      >
+        <Stack>
+          <Text>
+            Welcome to Tahfeedh. Your account is ready — log in to get started.
+          </Text>
+          <Text size="sm" c="dimmed">
+            Redirecting to the login page in {countdown} second{countdown === 1 ? '' : 's'}…{' '}
+            <Anchor component={Link} to="/login">
+              go now
+            </Anchor>
+          </Text>
         </Stack>
-      </Card>
-    </Center>
+      </Modal>
+
+      <Modal
+        opened={outcome === 'duplicate'}
+        onClose={() => setOutcome(null)}
+        title="That email is already registered"
+      >
+        <Stack>
+          <Text>
+            Looks like you already have a Tahfeedh account with this email. Log in instead?
+          </Text>
+          <Group justify="flex-end">
+            <Button variant="default" onClick={() => setOutcome(null)}>
+              Try a different email
+            </Button>
+            <Button onClick={() => navigate({ to: '/login' })}>
+              Go to login
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
+    </>
   );
 }

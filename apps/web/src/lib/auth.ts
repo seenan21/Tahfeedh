@@ -1,6 +1,24 @@
 import { supabase } from './supabase';
 import type { UserRole } from '@tahfeedh/shared';
 
+export function formatAuthError(err: unknown): string {
+  if (err instanceof Error) return err.message;
+  if (typeof err === 'string') return err;
+  if (err && typeof err === 'object') {
+    const e = err as { message?: unknown; error?: unknown; hint?: unknown; code?: unknown };
+    if (typeof e.message === 'string') return e.message;
+    if (typeof e.error === 'string') return e.error;
+    if (typeof e.hint === 'string') return e.hint;
+    if (typeof e.code === 'string') return `Error code: ${e.code}`;
+    try {
+      return JSON.stringify(err);
+    } catch {
+      return 'Unknown error';
+    }
+  }
+  return String(err);
+}
+
 export interface CurrentUser {
   id: string;
   email: string;

@@ -12,7 +12,7 @@ import {
   Title,
 } from '@mantine/core';
 import { useState } from 'react';
-import { getCurrentUser, homeRouteForRole, signIn } from '../lib/auth';
+import { formatAuthError, getCurrentUser, homeRouteForRole, signIn } from '../lib/auth';
 
 export const Route = createFileRoute('/login')({
   beforeLoad: async ({ context }) => {
@@ -57,7 +57,7 @@ function LoginPage() {
       if (!user) throw new Error('Login succeeded but no profile was found');
       navigate({ to: homeRouteForRole(user.role) });
     } catch (err) {
-      setSubmitError(err instanceof Error ? err.message : String(err));
+      setSubmitError(formatAuthError(err));
     } finally {
       setSubmitting(false);
     }

@@ -327,6 +327,95 @@ The static QUL data stays. The Tahfeedh DB stays. The integration is genuinely a
 - Multi-language UI
 - Mutashabihat features (CONDITIONAL — only if M1–M6 ship smoothly; see M9)
 
+### 6.3 Onboarding Flow
+
+All new users complete a mandatory post-login onboarding before reaching the Today view. The signup form itself stays minimal (email, password, role). Onboarding is the data-collection layer that makes Today meaningful on day one.
+
+**Gate:** `student_settings.onboarding_complete = false` redirects all protected routes to `/onboarding`. Cannot be skipped — first session is worth the 60–120 seconds it takes.
+
+#### Step 1 — Memorization state declaration
+
+User picks one of three paths:
+- **Just starting fresh** — no memorization yet; algorithm starts at page 1
+- **I've memorized some already** — proceed to Step 2 to capture state
+- **I've memorized the whole Qur'an** — all 604 pages marked memorized; `has_completed_quran = true`; skip to Step 3
+
+#### Step 2 — Memorization capture (two modes)
+
+Mode toggle at top: `[ Juz Mode | Surah Mode ]`. Both modes write to the same underlying tables; users can switch without losing selections.
+
+**Juz Mode** (default for "some already" path):
+- 30-cell grid, one cell per juz, tap to toggle
+- Shortcut buttons: `[Juz 1–5]` `[Juz 26–30]` `[All 30]`
+- Optional "Currently in the middle of one?" → pick juz, then surah within juz, then ayah position
+
+**Surah Mode** (for cherry-picked or mixed memorization):
+- Scrollable, searchable list of all 114 surahs
+- Tap to toggle each surah as memorized
+- For any selected surah, optional partial: "All of it" (default) or "ayahs 1 to ___"
+- Search supports English transliteration, Arabic name, and surah number
+
+Users can mix patterns by switching modes (e.g., select juz 1–2 + juz 28–30 in juz mode, then switch to surah mode to add scattered Surah Yaseen + Surah Al-Mulk). Selections persist across mode switches and visually reflect each other where they overlap.
+
+#### Step 3 — Daily session size
+
+Two questions, with traditional madrasa defaults preselected:
+
+**New memorization per day:**
+- Half a page (~7–8 lines)
+- 1 page ← default
+- 2 pages
+- Custom...
+
+**Revision per day:**
+- 3 pages
+- 5 pages ← default
+- 10 pages
+- Custom...
+
+A note below: "You can change these anytime in Settings."
+
+#### Database writes at onboarding finish
+
+For each fully-memorized juz or surah from Step 2:
+- Insert `memorization_page` rows for every page covered, `status = 'memorized'`, `memorized_at = signup_date - 30 days`
+- Insert `ayah_review_state` rows for every ayah covered: `last_reviewed_at = signup_date - 30 days`, `consecutive_clean_tests = 0`, `recent_stage = NULL` (enters old revision pool directly, bypasses recent revision queue)
+
+For partial-page in-progress memorization:
+- Insert `memorization_verse` rows up to the marked ayah
+- Insert one `memorization_page` row for that page with `status = 'in_progress'`
+
+For "whole Qur'an" path:
+- Same as full memorization for pages 1–604
+- `student_settings.has_completed_quran = true`
+
+For Step 3:
+- `student_settings.pages_per_session_new = [chosen value]` (NUMERIC, allows 0.5)
+- `student_settings.pages_per_session_revision = [chosen value]`
+- `student_settings.onboarding_complete = true`
+
+#### Rationale for "stale" imported memorization
+
+All imported memorization gets `last_reviewed_at = signup_date - 30 days` rather than the current date. This causes the algorithm to surface imported pages naturally across the first few sessions of revision, rather than treating them as freshly tested. The first test rating on each page corrects the model — pages rated `excellent` quickly accrue mastery; pages rated `needs_work` get bumped up in priority.
+
+This avoids asking the user "when did you last review this?" — a question whose answer doesn't reliably change behavior and would slow onboarding.
+
+#### Half-page support (`pages_per_session_new = 0.5`)
+
+When the user picks "Half a page" in Step 3, the algorithm splits each in-progress page into two halves. The split point is computed at build time per page (see §10.2 update).
+
+New-lesson queue behavior when `pages_per_session_new < 1`:
+- If the in-progress page has unmemorized ayahs in its first half → today's new lesson covers the first half
+- Otherwise → today's new lesson covers the second half (and the page graduates to `memorized` when the second half passes a `strong_pass` test)
+
+For values > 1 (e.g., 2 pages): emit N full pages in queue order.
+
+For values where the in-progress page is already half-done and the daily quota is 1: today's new lesson is the remaining half + the first half of the next page.
+
+#### Editing memorization later
+
+Settings → "Edit Memorization" reopens the Step 2 picker in the user's last-used mode, pre-populated with current state. Saving updates the underlying rows. Useful when a student returns after an absence and wants to mark additional memorization without re-onboarding.
+
 ---
 
 ## 7. Session & Algorithm Model
@@ -609,20 +698,17 @@ When a user taps an error overlay:
 
 ## 10. Mushaf Rendering
 
-### 10.1 Source data (QUL)
+### 10.1 Source data
 
-- `mushaf-layout/10` (KFGQPC V2 Madani 15-line layout SQLite)
-- `quran-script/61` (QPC V2 word-by-word script SQLite)
-- KFGQPC V2 font (.woff2)
-- `quran-metadata` (JSON)
+Mushaf word-layout (Madani 15-line) and chapters/juzs metadata are pulled from `api.quran.com/api/v4` at build time — the same canonical QUL upstream data, exposed publicly without auth. See ADR 0002.
+
+QPC V2 fonts (604 page-scoped woff2 files) come from `static-cdn.tarteel.ai/qul/fonts/quran_fonts/v2/woff2/p{N}.woff2`. See ADR 0003.
 
 ### 10.2 Build-time pipeline
 
-`scripts/build-quran-data.ts`:
+Two scripts at the repo root, run by `npm run build:assets` (which is chained into `npm run build:web` for deploys):
 
-1. Download QUL SQLite files and JSON to a temp directory
-2. Read SQLite via `better-sqlite3`
-3. For each page 1–604, emit `apps/web/src/data/pages/{page}.json`:
+**`scripts/build-quran-data.ts`** — fetches each page from `api.quran.com/api/v4/verses/by_page/{N}?words=true&word_fields=code_v2,line_number,position,location,char_type_name`, parallelized at concurrency 10. For each page 1–604, emit `apps/web/src/data/pages/{page}.json`:
    ```typescript
    {
      page_number: number,
@@ -638,11 +724,24 @@ When a user taps an error overlay:
          position: number,             // word position within ayah (1-based)
          text: string                  // arabic text
        }>
-     }>
+     }>,
+
+     // For half-page memorization support (per §6.3)
+     midpoint_ayah_break: {
+       first_half_last_ayah: { surah: number, ayah: number },
+       second_half_first_ayah: { surah: number, ayah: number },
+       first_half_line_count: number,
+       second_half_line_count: number
+     }
    }
    ```
-4. Emit `apps/web/src/data/metadata.json` with surah list, juz boundaries, hizb boundaries, ayah counts per surah, mutashabihat (if M9)
-5. Copy font to `apps/web/public/fonts/QPCHafsV2.woff2`
+
+   **Midpoint algorithm:** walk lines in order, accumulate line counts, pick the ayah break whose split is closest to 7.5 lines. If a single ayah straddles that boundary, prefer ending the first half on the earlier complete ayah. This produces a natural reading break every time, using the QUL layout data we already ingest — no external API needed.
+4. Also emit `apps/web/src/data/metadata.json` from `/chapters` and `/juzs` (the `/juzs` endpoint returns each juz twice; the script dedupes by `juz_number`). Mutashabihat layered in if/when M9 ships.
+
+**`scripts/download-fonts.ts`** — parallel fetch of `p1.woff2 … p604.woff2` from the Tarteel CDN into `apps/web/public/fonts/v2/`. Skips already-downloaded files unless `--force`. After downloading, emits `apps/web/src/styles/quran-fonts.css` with 604 auto-generated `@font-face` rules of the form `font-family: 'QPC V2 P{N}'`.
+
+The 95 MB of woff2 files and the generated CSS are git-ignored — regenerated at deploy time, never committed.
 
 Per-page JSON is preferable to runtime SQLite — smaller bundle per page, no SQLite client needed in browser, can be code-split per page via dynamic import.
 
@@ -680,22 +779,13 @@ User toggles between modes with four buttons above the mushaf. Tapping a highlig
 
 ### 10.5 Font setup
 
-```css
-@font-face {
-  font-family: 'QPC Hafs';
-  src: url('/fonts/QPCHafsV2.woff2') format('woff2');
-  font-display: swap;
-}
+604 page-scoped fonts (one per Madani 15-line page) — see ADR 0003. Auto-generated CSS lives at `apps/web/src/styles/quran-fonts.css` and contains rules of the form:
 
-.mushaf-word {
-  font-family: 'QPC Hafs', serif;
-  font-size: 28px;
-  line-height: 2;
-  cursor: pointer;
-}
+```css
+@font-face { font-family: 'QPC V2 P50'; src: url('/fonts/v2/p50.woff2') format('woff2'); font-display: swap; }
 ```
 
-Scoped to mushaf elements only — never apply to UI chrome.
+`<MushafPage pageNumber={N}>` applies `style={{ fontFamily: 'QPC V2 P${N}' }}` to each `.mushaf-word` descendant so the right per-page font is picked up. The base `.mushaf-word` rule only sets size, line-height, and cursor — never a `font-family`. Scoped to mushaf elements only.
 
 ### 10.6 Memorization status overlay (My Mushaf view)
 
@@ -820,6 +910,29 @@ Full DDL lives in `supabase/migrations/*.sql`. This section is the conceptual re
 | `error_location_stats` | Rollup of recurrent errors | Updated by Express after each test closes |
 | `goal` | Long-term hifz targets | Synced with QF Goals API via `qf_goal_id` |
 | `qf_user_token` | QF OAuth tokens | RLS denies all client access |
+
+#### `student_settings` DDL (reflects onboarding flow per §6.3)
+
+```sql
+CREATE TABLE student_settings (
+  user_id UUID PRIMARY KEY REFERENCES app_user(id) ON DELETE CASCADE,
+  pages_per_session_new NUMERIC(3,1) NOT NULL DEFAULT 1.0
+    CHECK (pages_per_session_new >= 0),
+  pages_per_session_revision INT NOT NULL DEFAULT 5
+    CHECK (pages_per_session_revision >= 0),
+  has_completed_quran BOOLEAN NOT NULL DEFAULT false,
+  max_review_interval_sessions INT NOT NULL DEFAULT 60,
+  onboarding_complete BOOLEAN NOT NULL DEFAULT false,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+```
+
+Two changes from earlier drafts:
+- `pages_per_session_new` is `NUMERIC(3,1)` (was `INT`) so `0.5` is valid — see half-page support in §6.3.
+- `onboarding_complete BOOLEAN NOT NULL DEFAULT false` — new column gating route access.
+
+Helper functions in §12.3 do not change; the algorithm reads `pages_per_session_new` as a number regardless of integer or fractional value.
 
 ### 12.2 Enums (11 total)
 
@@ -1008,7 +1121,7 @@ Mantine `AppShell`:
 - **Timeline** — calendar / history view
 - **My Mushaf** — 604-page grid + page deep-dive
 - **Goals** — long-term targets
-- **Settings** — capacity sliders, completed-Quran flag, invite code, profile
+- **Settings** — capacity sliders, completed-Quran flag, invite code, profile, **Edit Memorization** (reopens onboarding Step 2 with current state pre-populated)
 
 ### 14.3 Teacher navigation (sidebar)
 
@@ -1148,9 +1261,8 @@ Interpolated linearly by intensity score.
 
 ### 15.4 Typography
 
-- UI body: Mantine default sans (Inter)
-- UI headings: Mantine default
-- Quranic text: QPC Hafs V2 (custom @font-face)
+- UI body / headings: see DESIGN-SYSTEM.md §3 (six-font discipline: Playfair, Montserrat, Roboto, Cairo, Amiri, Scheherazade New)
+- Mushaf text: 604 page-scoped QPC V2 woff2 fonts (`QPC V2 P{N}`), one per Madani page — see ADR 0003
 - Mushaf font size: 28px desktop, 22px mobile, line-height 2
 
 ### 15.5 Spacing & layout
@@ -1262,23 +1374,24 @@ Run after every deploy to keep demo state fresh.
 
 Dependency-ordered. AI-paced. Tick them off as you go.
 
-### M1 — Foundation
-- [ ] Monorepo scaffold (apps/web + apps/server + packages/shared)
-- [ ] Vite + React + TanStack Router + Mantine in apps/web
-- [ ] Express + TypeScript in apps/server with one /health route
-- [ ] Supabase project created
-- [ ] Run migrations 1–8 in Supabase SQL editor
-- [ ] Supabase auth wired in frontend: email/password signup, login, protected routes
-- [ ] Role selection at signup persists to `app_user.roles`
-- [ ] Express endpoint that calls QF Content API (`/chapters`) and returns the result
-- [ ] Frontend successfully fetches surah list via Express
-- [ ] One-time deploy to Cloudflare Pages + Railway, confirm pipeline works
+### M1 — Foundation ✅
+- [x] Monorepo scaffold (apps/web + apps/server + packages/shared)
+- [x] Vite + React + TanStack Router + Mantine in apps/web
+- [x] Express + TypeScript in apps/server with one /health route
+- [x] Supabase project created
+- [x] Run migrations 1–8 in Supabase SQL editor
+- [x] Supabase auth wired in frontend: email/password signup, login, protected routes
+- [x] Role selection at signup persists to `app_user.roles`
+- [x] Express endpoint that calls QF Content API (`/chapters`) and returns the result
+- [x] Frontend successfully fetches surah list via Express
+- [x] One-time deploy to Cloudflare Pages + Railway, confirm pipeline works
 
 **Done when:** sign up → log in → see a list of 114 surahs fetched through your backend.
 
 ### M2 — The Mushaf
 - [ ] Download QUL V2 layout SQLite, word-by-word script, QPC Hafs font
 - [ ] `scripts/build-quran-data.ts` converts SQLite → 604 per-page JSON files
+- [ ] Build-time pipeline computes `midpoint_ayah_break` per page (used by half-page memorization)
 - [ ] Metadata.json with surah names, juz/hizb boundaries
 - [ ] `<MushafPage />` component with dynamic-imported page data
 - [ ] @font-face setup for QPC Hafs
@@ -1289,6 +1402,10 @@ Dependency-ordered. AI-paced. Tick them off as you go.
 **Done when:** navigate to any page (1–604), see beautiful mushaf rendering, tap any word/verse, see toggle-able overlays.
 
 ### M3 — Memorization + Today View
+- [ ] Onboarding flow: Step 1 (state declaration), Step 2 (juz/surah mode picker), Step 3 (session size)
+- [ ] Onboarding gate: redirect to `/onboarding` when `onboarding_complete = false`
+- [ ] Bulk-write `memorization_page` + `ayah_review_state` rows from juz/surah selections
+- [ ] Half-page support in new-lesson queue (when `pages_per_session_new < 1`)
 - [ ] Mark page memorized → writes `memorization_page` row
 - [ ] Partial-page memorization writes `memorization_verse` rows
 - [ ] Frontend reads memorization state and colors My Mushaf grid
@@ -1333,6 +1450,7 @@ Dependency-ordered. AI-paced. Tick them off as you go.
 ### M7 — Timeline + Polish
 - [ ] Timeline/Calendar view: past tests, errors, milestones
 - [ ] Error detail modal with full occurrence history, trend, mark-resolved
+- [ ] Settings → Edit Memorization screen (reopens onboarding Step 2 with current state)
 - [ ] Empty states with personality
 - [ ] Loading skeletons everywhere
 - [ ] Error toasts on failures
@@ -1413,6 +1531,9 @@ A teacher could theoretically edit an error during a test from one tab while sub
 ### 20.12 Reading direction
 Mushaf is RTL. UI is LTR. Make sure the mushaf container has `dir="rtl"` while the surrounding UI stays LTR. Test in M2.
 
+### 20.13 Re-onboarding edge cases
+When a user uses Settings → Edit Memorization to mark *additional* memorization beyond what was originally captured, the new pages/ayahs should get `last_reviewed_at = now - 30 days` (same as original onboarding). If they mark pages as *no longer memorized* (e.g., they over-claimed at onboarding), decide: hard delete the rows, or set status back to `in_progress`. Recommend soft (status reset) to preserve any test history that might exist. Handle in M7.
+
 ---
 
 ## 21. Glossary
@@ -1435,6 +1556,8 @@ Mushaf is RTL. UI is LTR. Make sure the mushaf container has `dir="rtl"` while t
 - **QF** — Quran Foundation (the organization running this hackathon)
 - **PKCE** — Proof Key for Code Exchange; OAuth2 extension for public clients
 - **RLS** — Row Level Security (Postgres feature; Supabase exposes this)
+- **Onboarding** — mandatory post-login flow capturing existing memorization state and session preferences. Gates access to Today view via `student_settings.onboarding_complete`.
+- **Midpoint ayah break** — computed-at-build-time data identifying the natural ayah boundary closest to a page's vertical midpoint, used for half-page memorization slicing.
 
 ---
 

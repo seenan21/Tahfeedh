@@ -14,7 +14,7 @@ import {
   TextInput,
   Title,
 } from '@mantine/core';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { UserRole } from '@tahfeedh/shared';
 import {
   formatAuthError,
@@ -55,6 +55,7 @@ function SignupPage() {
   const [submitting, setSubmitting] = useState(false);
   const [outcome, setOutcome] = useState<'success' | 'duplicate' | null>(null);
   const [countdown, setCountdown] = useState(REDIRECT_SECONDS);
+  const redirectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const form = useForm<FormValues>({
     initialValues: { email: '', password: '', displayName: '', role: 'student' },
@@ -66,14 +67,14 @@ function SignupPage() {
   });
 
   useEffect(() => {
-    if (outcome !== 'success') return;
-    if (countdown <= 0) {
-      navigate({ to: '/login' });
-      return;
-    }
+    if (outcome !== 'success' || countdown <= 0) return;
     const t = setTimeout(() => setCountdown((c) => c - 1), 1000);
     return () => clearTimeout(t);
-  }, [outcome, countdown, navigate]);
+  }, [outcome, countdown]);
+
+  useEffect(() => () => {
+    if (redirectTimer.current) clearTimeout(redirectTimer.current);
+  }, []);
 
   async function handleSubmit(values: FormValues) {
     setSubmitError(null);
@@ -83,9 +84,15 @@ function SignupPage() {
       // Sign out so the user logs in fresh — clearer mental model and lets us
       // surface the success modal before dropping them into the app.
       await signOut();
-      await queryClient.invalidateQueries({ queryKey: ['session'] });
+      // Replace the cached session with null synchronously so any subsequent
+      // beforeLoad sees a logged-out state — invalidate alone can lose the
+      // race with the modal's navigation timer.
+      queryClient.setQueryData(['session'], null);
       setCountdown(REDIRECT_SECONDS);
       setOutcome('success');
+      redirectTimer.current = setTimeout(() => {
+        navigate({ to: '/login' });
+      }, REDIRECT_SECONDS * 1000);
     } catch (err) {
       const msg = formatAuthError(err);
       if (DUPLICATE_PATTERNS.test(msg)) {

@@ -35,7 +35,11 @@ function AuthedLayout() {
   return (
     <AppShell
       header={{ height: 60 }}
-      navbar={{ width: 260, breakpoint: 'sm' }}
+      navbar={{
+        width: 260,
+        breakpoint: 'sm',
+        collapsed: { mobile: false, desktop: false },
+      }}
       padding="md"
     >
       <AppShell.Header>

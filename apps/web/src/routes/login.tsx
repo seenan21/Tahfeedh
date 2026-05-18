@@ -12,7 +12,7 @@ import {
   Title,
 } from '@mantine/core';
 import { useState } from 'react';
-import { formatAuthError, getCurrentUser, homeRouteForRole, signIn } from '../lib/auth';
+import { formatAuthError, getCurrentUser, landingRouteForUser, signIn } from '../lib/auth';
 
 export const Route = createFileRoute('/login')({
   beforeLoad: async ({ context }) => {
@@ -20,7 +20,7 @@ export const Route = createFileRoute('/login')({
       queryKey: ['session'],
       queryFn: getCurrentUser,
     });
-    if (user) throw redirect({ to: homeRouteForRole(user.role) });
+    if (user) throw redirect({ to: landingRouteForUser(user) });
   },
   component: LoginPage,
 });
@@ -55,7 +55,7 @@ function LoginPage() {
         queryFn: getCurrentUser,
       });
       if (!user) throw new Error('Login succeeded but no profile was found');
-      navigate({ to: homeRouteForRole(user.role) });
+      navigate({ to: landingRouteForUser(user) });
     } catch (err) {
       setSubmitError(formatAuthError(err));
     } finally {

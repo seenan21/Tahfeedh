@@ -1,5 +1,5 @@
 import { createFileRoute, redirect } from '@tanstack/react-router';
-import { getCurrentUser, homeRouteForRole } from '../lib/auth';
+import { getCurrentUser, landingRouteForUser } from '../lib/auth';
 
 export const Route = createFileRoute('/')({
   beforeLoad: async ({ context }) => {
@@ -7,6 +7,6 @@ export const Route = createFileRoute('/')({
       queryKey: ['session'],
       queryFn: getCurrentUser,
     });
-    throw redirect({ to: user ? homeRouteForRole(user.role) : '/login' });
+    throw redirect({ to: user ? landingRouteForUser(user) : '/login' });
   },
 });

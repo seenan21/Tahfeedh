@@ -95,10 +95,15 @@ The error-tracking system (word-level with type, severity, recurrence detection)
 
 These are the non-negotiable foundations. Every implementation decision should be checked against them.
 
-### 3.1 Hifz is teacher-witnessed.
-All tests require a teacher. There is no "self-test" mode. Students can track their own memorization progress (mark pages memorized) and set goals, but the act of being *tested* — which generates authoritative error data — always involves a teacher.
+### 3.1 Hifz is human-witnessed.
+All tests require a human witness. There is no "self-test" mode — the student cannot tap a button alone and rate themselves. Two witness paths are supported (see ADR 0004):
 
-**Rationale:** This is how hifz has been transmitted for 1400 years. Self-reported errors are unreliable because the student is the one who would notice the error in the first place. The whole tradition of hifz is built around the relationship with a teacher who hears and corrects.
+- **Enrolled teacher:** authenticated teacher account runs the test on the student.
+- **Guest teacher:** student hands their device to whoever's testing them (parent, sibling, visiting hafiz, study partner) — that person drives the test UI; an optional name is recorded.
+
+Students can track their own memorization progress (mark pages memorized) and set goals, but the act of being *tested* — which generates authoritative error data — always involves another person.
+
+**Rationale:** This is how hifz has been transmitted for 1400 years. Self-reported errors are unreliable because the student is the one who would have to notice the error in the first place. The whole tradition is built around someone else hearing and correcting. Restricting tests to enrolled-teacher accounts only would lock out the majority of real-world testing volume (which happens at home, in halaqahs, between peers) — guest mode captures that without weakening the witness principle.
 
 ### 3.2 Every session balances new with old.
 A session is only complete when its required pages from both buckets (newly memorized + revision) have been covered by closed tests that day. Students cannot grind new memorization while neglecting revision, and cannot only review while never advancing.
@@ -286,6 +291,7 @@ The static QUL data stays. The Tahfeedh DB stays. The integration is genuinely a
 **Student-facing:**
 - Sign up → role selection → onboarding
 - Today view: streak, "what to memorize next," "what to review today," per-item reasons
+- Tests: "Begin test" entry point (guest-witnessed, see ADR 0004) + past tests history
 - Timeline / Calendar view: past tests, errors over time, milestones
 - My Mushaf view: all 604 pages, color-coded by status, with historical error overlays
 - Memorization marking (per page, or per verse for in-progress pages)
@@ -300,6 +306,7 @@ The static QUL data stays. The Tahfeedh DB stays. The integration is genuinely a
 - Drill into any enrolled student → view their data + teacher controls
 - Start test on a student: pick test_type, pick range, enter live test mode
 - Live test mode: mushaf renders range with overlays, tap to log errors, error modal for type/severity/note
+- Tests overview: flat list of all tests this teacher has run across all enrolled students
 - Post-test summary: new errors / recurring errors / cleared errors
 - Group management
 
@@ -611,7 +618,7 @@ Reads from local static data; no network call.
 | Auto-abandonment | Open tests with no `ended_at` after 24h → status set to `abandoned` by periodic job |
 | Minimum duration | `ended_at - started_at >= 30 seconds` required to count as `completed`; otherwise auto-set to `abandoned` |
 | Rating required | `status = 'completed'` requires `rating IS NOT NULL` (enforced by CHECK constraint) |
-| Teacher must be enrolled | Insert into `test` requires `is_my_student(student_id)` to be true (RLS) |
+| Witness required | Insert into `test` requires either `is_my_student(student_id)` (enrolled teacher) OR `auth.uid() = student_id AND test_mode = 'guest_teacher'` (student-initiated guest test). Pure self-rating is impossible — the UI requires the device be handed to another person, see ADR 0004 |
 | Test type matches page status | New tests can't be created for already-mastered pages; revision tests can't be created for never-memorized pages |
 
 ### 8.7 What is "covered" by a test
@@ -905,7 +912,7 @@ Full DDL lives in `supabase/migrations/*.sql`. This section is the conceptual re
 | `memorization_page` | Page-level memorization | Sparse: no row = page untouched |
 | `memorization_verse` | Verse-level (in-progress) | Sparse: used during partial-page memorization |
 | `ayah_review_state` | Algorithm input | Ayah-level review timestamps + recent_stage state machine |
-| `test` | Teacher-administered tests | JSONB ranges; only one open test per student |
+| `test` | Human-witnessed tests | JSONB ranges; only one open test per student; `teacher_id` nullable when `test_mode='guest_teacher'`; `guest_tester_name TEXT` optional. See ADR 0004 |
 | `error_log` | Individual error entries | `signature` is GENERATED STORED |
 | `error_location_stats` | Rollup of recurrent errors | Updated by Express after each test closes |
 | `goal` | Long-term hifz targets | Synced with QF Goals API via `qf_goal_id` |
@@ -934,7 +941,7 @@ Two changes from earlier drafts:
 
 Helper functions in §12.3 do not change; the algorithm reads `pages_per_session_new` as a number regardless of integer or fractional value.
 
-### 12.2 Enums (11 total)
+### 12.2 Enums (12 total)
 
 | Enum | Values |
 |---|---|
@@ -942,6 +949,7 @@ Helper functions in §12.3 do not change; the algorithm reads `pages_per_session
 | `memorization_status` | `in_progress`, `memorized`, `mastered` |
 | `test_type` | `newly_memorized`, `revision` |
 | `test_status` | `in_progress`, `completed`, `abandoned` |
+| `test_mode` | `enrolled_teacher`, `guest_teacher` |
 | `test_rating` | `strong_pass`, `pass_needs_practice`, `excellent`, `good`, `needs_work`, `fail` |
 | `error_type` | `tajweed`, `pronunciation`, `omission`, `addition`, `mismatch`, `wrong_verse`, `forgotten_verse`, `hesitation` |
 | `error_severity` | `minor`, `moderate`, `major` |
@@ -1118,7 +1126,8 @@ Mantine `AppShell`:
 ### 14.2 Student navigation (sidebar)
 
 - **Today** (default) — daily plan
-- **Timeline** — calendar / history view
+- **Tests** — "Begin test" CTA (guest-witnessed; see ADR 0004) + past tests history
+- **Timeline** — calendar / history view (errors over time, milestones)
 - **My Mushaf** — 604-page grid + page deep-dive
 - **Goals** — long-term targets
 - **Settings** — capacity sliders, completed-Quran flag, invite code, profile, **Edit Memorization** (reopens onboarding Step 2 with current state pre-populated)
@@ -1127,6 +1136,7 @@ Mantine `AppShell`:
 
 - **Students** (default) — list of enrolled students
 - **Groups** — class/halaqah management
+- **Tests** — flat overview of all tests this teacher has run across all enrolled students
 - **Settings** — profile
 
 When a teacher drills into a student, the layout switches to show that student's data with a "Back to Students" breadcrumb.
@@ -1423,8 +1433,12 @@ Dependency-ordered. AI-paced. Tick them off as you go.
 - [ ] Submit test → post-test processing pipeline runs (server-side)
 - [ ] Errors written to `error_log`, stats updated
 - [ ] Post-test summary screen with new/recurring/cleared
+- [ ] Student-side **Begin test** entry point (guest-witnessed; ADR 0004) — trust nudge, optional `guest_tester_name`, same live-test UI as teacher path
+- [ ] Student Tests sidebar — history list + Begin-test CTA
+- [ ] Teacher Tests sidebar — flat overview of tests run across all enrolled students
+- [ ] RLS: students can insert/update their own `test` rows when `test_mode='guest_teacher'`
 
-**Done when:** end-to-end test from student selection → live test → error logging → submitted → summary visible.
+**Done when:** end-to-end test from student selection → live test → error logging → submitted → summary visible, AND a student can run a guest-witnessed test on their own device with the same live-test UI.
 
 ### M5 — Algorithm + Today Full
 - [ ] Queue 2 (recent revision state machine) implemented in pipeline

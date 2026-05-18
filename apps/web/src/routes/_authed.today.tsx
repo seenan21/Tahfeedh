@@ -1,16 +1,11 @@
 import { createFileRoute, redirect } from '@tanstack/react-router';
 import { Card, Stack, Text, Title } from '@mantine/core';
-import { getCurrentUser, homeRouteForRole } from '../lib/auth';
+import { homeRouteForRole } from '../lib/auth';
 
-export const Route = createFileRoute('/today')({
-  beforeLoad: async ({ context }) => {
-    const user = await context.queryClient.fetchQuery({
-      queryKey: ['session'],
-      queryFn: getCurrentUser,
-    });
-    if (!user) throw redirect({ to: '/login' });
+export const Route = createFileRoute('/_authed/today')({
+  beforeLoad: ({ context }) => {
+    const { user } = context;
     if (user.role !== 'student') throw redirect({ to: homeRouteForRole(user.role) });
-    return { user };
   },
   component: TodayPage,
 });
@@ -21,7 +16,7 @@ function TodayPage() {
   return (
     <Card maw={720} mx="auto">
       <Stack>
-        <Title order={2}>Today</Title>
+        <Title order={1}>Today</Title>
         <Text>
           Welcome, {user.displayName ?? user.email}. Your daily plan will live here once memorization
           tracking is in (M3).

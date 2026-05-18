@@ -1,16 +1,11 @@
 import { createFileRoute, redirect } from '@tanstack/react-router';
 import { Card, Stack, Text, Title } from '@mantine/core';
-import { getCurrentUser, homeRouteForRole } from '../lib/auth';
+import { homeRouteForRole } from '../lib/auth';
 
-export const Route = createFileRoute('/students')({
-  beforeLoad: async ({ context }) => {
-    const user = await context.queryClient.fetchQuery({
-      queryKey: ['session'],
-      queryFn: getCurrentUser,
-    });
-    if (!user) throw redirect({ to: '/login' });
+export const Route = createFileRoute('/_authed/students')({
+  beforeLoad: ({ context }) => {
+    const { user } = context;
     if (user.role !== 'teacher') throw redirect({ to: homeRouteForRole(user.role) });
-    return { user };
   },
   component: StudentsPage,
 });
@@ -21,7 +16,7 @@ function StudentsPage() {
   return (
     <Card maw={720} mx="auto">
       <Stack>
-        <Title order={2}>Students</Title>
+        <Title order={1}>Students</Title>
         <Text>
           Welcome, {user.displayName ?? user.email}. Your enrolled students will live here once the
           enrollment flow is in (M6).

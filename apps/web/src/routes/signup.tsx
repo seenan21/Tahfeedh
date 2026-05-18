@@ -19,6 +19,7 @@ import type { UserRole } from '@tahfeedh/shared';
 import {
   formatAuthError,
   getCurrentUser,
+  landingRouteForUser,
   signOut,
   signUpWithRole,
 } from '../lib/auth';
@@ -30,7 +31,7 @@ export const Route = createFileRoute('/signup')({
       queryFn: getCurrentUser,
     });
     if (user) {
-      throw redirect({ to: user.role === 'student' ? '/today' : '/students' });
+      throw redirect({ to: landingRouteForUser(user) });
     }
   },
   component: SignupPage,

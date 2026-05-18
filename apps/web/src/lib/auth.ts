@@ -24,6 +24,7 @@ export interface CurrentUser {
   email: string;
   role: UserRole;
   displayName: string | null;
+  onboardingComplete: boolean;
 }
 
 export async function getCurrentUser(): Promise<CurrentUser | null> {
@@ -40,11 +41,22 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
 
   if (error || !profile) return null;
 
+  let onboardingComplete = true;
+  if (profile.role === 'student') {
+    const { data: settings } = await supabase
+      .from('student_settings')
+      .select('onboarding_complete')
+      .eq('student_id', profile.id)
+      .maybeSingle();
+    onboardingComplete = settings?.onboarding_complete ?? false;
+  }
+
   return {
     id: profile.id,
     email: session.user.email ?? '',
     role: profile.role,
     displayName: profile.display_name,
+    onboardingComplete,
   };
 }
 
@@ -80,6 +92,7 @@ export async function signUpWithRole(params: {
     email: data.user.email ?? email,
     role,
     displayName,
+    onboardingComplete: false,
   };
 }
 
@@ -94,4 +107,9 @@ export async function signOut(): Promise<void> {
 
 export function homeRouteForRole(role: UserRole): '/today' | '/students' {
   return role === 'student' ? '/today' : '/students';
+}
+
+export function landingRouteForUser(user: CurrentUser): '/today' | '/students' | '/onboarding' {
+  if (user.role === 'student' && !user.onboardingComplete) return '/onboarding';
+  return homeRouteForRole(user.role);
 }

@@ -49,14 +49,19 @@ function TestsPage() {
     <Container size="md" py="lg">
       <Stack gap="lg">
         <Stack gap={4}>
-          <Group gap="xs">
-            <GraduationCap size={22} />
-            <Title order={2}>Tests</Title>
-            <Badge variant="light" color="sage">
+          <Text size="xs" tt="uppercase" c="parchment.0" fw={700} lts={0.8} style={{ opacity: 0.85 }}>
+            Tests
+          </Text>
+          <Group gap="xs" align="center">
+            <GraduationCap size={26} color="var(--mantine-color-parchment-0)" />
+            <Title order={2} c="parchment.0">
+              Witnessed tests
+            </Title>
+            <Badge variant="filled" color="sage.7">
               Phase D
             </Badge>
           </Group>
-          <Text c="dimmed" size="sm">
+          <Text c="parchment.0" size="sm" style={{ opacity: 0.75 }}>
             الاختبارات · Witnessed tests are how a page moves from in-progress to memorized.
           </Text>
         </Stack>

@@ -13,7 +13,8 @@ import {
 } from '@mantine/core';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import type { MemorizationStatus, NextNewLesson } from '@tahfeedh/shared';
+import type { ErrorLocationStatsRow, MemorizationStatus, NextNewLesson } from '@tahfeedh/shared';
+import type { OverlayMode } from '../mushaf/MushafPage';
 import { homeRouteForRole } from '../lib/auth';
 import { supabase } from '../lib/supabase';
 import { quranIndex } from '../data/quran-data';
@@ -36,6 +37,7 @@ interface MemorizedPageRow {
 }
 
 const LAST_PAGE_KEY = 'tahfeedh:mushaf:lastPage';
+const OVERLAY_MODE_KEY = 'tahfeedh:mushaf:overlayMode';
 
 async function fetchPages(studentId: string): Promise<MemorizedPageRow[]> {
   const { data, error } = await supabase
@@ -44,6 +46,26 @@ async function fetchPages(studentId: string): Promise<MemorizedPageRow[]> {
     .eq('student_id', studentId);
   if (error) throw error;
   return (data as MemorizedPageRow[] | null) ?? [];
+}
+
+async function fetchErrorStats(studentId: string): Promise<ErrorLocationStatsRow[]> {
+  const { data, error } = await supabase
+    .from('error_location_stats')
+    .select(
+      'id, student_id, signature, surah_number, ayah_number, word_position, error_type, ' +
+        'occurrence_count, first_seen_at, last_seen_at, tests_since_last_occurrence, cleared, updated_at',
+    )
+    .eq('student_id', studentId)
+    .eq('cleared', false);
+  if (error) throw error;
+  return (data as unknown as ErrorLocationStatsRow[] | null) ?? [];
+}
+
+function readStoredOverlayMode(): OverlayMode {
+  if (typeof window === 'undefined') return 'colored';
+  const raw = window.localStorage.getItem(OVERLAY_MODE_KEY);
+  if (raw === 'none' || raw === 'simple' || raw === 'heatmap' || raw === 'colored') return raw;
+  return 'colored';
 }
 
 function readStoredPage(): number | null {
@@ -62,9 +84,23 @@ function MushafRoute() {
   const [selectedPage, setSelectedPage] = useState<number>(() => readStoredPage() ?? 0);
   const [pendingJump, setPendingJump] = useState<number | string>('');
 
+  const [overlayMode, setOverlayMode] = useState<OverlayMode>(() => readStoredOverlayMode());
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(OVERLAY_MODE_KEY, overlayMode);
+    }
+  }, [overlayMode]);
+
   const { data: pagesData, isLoading: pagesLoading } = useQuery({
     queryKey: ['memorization_pages', user.id],
     queryFn: () => fetchPages(user.id),
+    staleTime: 30_000,
+  });
+
+  const { data: errorStats } = useQuery({
+    queryKey: ['error_location_stats', user.id],
+    queryFn: () => fetchErrorStats(user.id),
     staleTime: 30_000,
   });
 
@@ -202,23 +238,41 @@ function MushafRoute() {
             </Tooltip>
           </Group>
 
-          <Group gap="xs" align="center">
-            <Text size="xs" c="dimmed">
-              Jump to
-            </Text>
-            <NumberInput
-              size="xs"
-              w={88}
-              min={1}
-              max={604}
-              value={pendingJump}
-              onChange={(v) => setPendingJump(v)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') applyJump();
-              }}
-              hideControls
-              placeholder="1–604"
-            />
+          <Group gap="md" align="center">
+            <Group gap={6} align="center">
+              <Text size="xs" c="dimmed">
+                Overlay
+              </Text>
+              <SegmentedControl
+                size="xs"
+                value={overlayMode}
+                onChange={(v) => setOverlayMode(v as OverlayMode)}
+                data={[
+                  { label: 'None', value: 'none' },
+                  { label: 'Simple', value: 'simple' },
+                  { label: 'Heatmap', value: 'heatmap' },
+                  { label: 'Colored', value: 'colored' },
+                ]}
+              />
+            </Group>
+            <Group gap="xs" align="center">
+              <Text size="xs" c="dimmed">
+                Jump to
+              </Text>
+              <NumberInput
+                size="xs"
+                w={88}
+                min={1}
+                max={604}
+                value={pendingJump}
+                onChange={(v) => setPendingJump(v)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') applyJump();
+                }}
+                hideControls
+                placeholder="1–604"
+              />
+            </Group>
           </Group>
         </Group>
       )}
@@ -228,7 +282,11 @@ function MushafRoute() {
         selectedPage > 0 ? (
           <Box className={classes.readerLayout}>
             <Box className={classes.mushafColumn}>
-              <MushafPage pageNumber={selectedPage} />
+              <MushafPage
+                pageNumber={selectedPage}
+                overlays={errorStats}
+                overlayMode={overlayMode}
+              />
             </Box>
             <Box className={classes.detailsColumn}>
               <PageDetailsPanel

@@ -108,7 +108,21 @@ export function TestCreationModal({ opened, onClose, onCreated, studentId }: Pro
 
   const statuses = useMemo<Map<number, MemorizationStatus>>(() => {
     const m = new Map<number, MemorizationStatus>();
-    for (const r of statusRows ?? []) m.set(r.page_number, r.status);
+    // Defensive: a stale React Query cache from an earlier code version could
+    // hold a Map here instead of an array. Array.isArray catches that without
+    // throwing "r.get is not a function" later.
+    if (!Array.isArray(statusRows)) {
+      if (statusRows != null) {
+        // eslint-disable-next-line no-console
+        console.warn('[TestCreationModal] expected array of page statuses, got', typeof statusRows);
+      }
+      return m;
+    }
+    for (const r of statusRows) {
+      if (r && typeof r === 'object' && 'page_number' in r && 'status' in r) {
+        m.set(r.page_number, r.status);
+      }
+    }
     return m;
   }, [statusRows]);
 

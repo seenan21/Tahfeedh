@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate, useParams } from '@tanstack/react-router';
+import { useNavigate, useParams, useRouteContext } from '@tanstack/react-router';
 import { ActionIcon, Alert, Button, Center, Container, Group, Loader, Paper, Stack, Text } from '@mantine/core';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import type { LogErrorInput, PostTestSummary, TestRange, TestType } from '@tahfeedh/shared';
@@ -45,6 +45,7 @@ export function LiveTestRoute() {
   const navigate = useNavigate();
   const params = useParams({ from: '/_authed/tests/$testId' });
   const testId = params.testId;
+  const { user } = useRouteContext({ from: '/_authed/tests/$testId' });
 
   const [test, setTest] = useState<TestRow | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -56,7 +57,7 @@ export function LiveTestRoute() {
   const [summary, setSummary] = useState<PostTestSummary | null>(null);
   const [summaryOpen, setSummaryOpen] = useState(false);
 
-  const session = useTestSession(testId);
+  const session = useTestSession(testId, user.id);
 
   useEffect(() => {
     let cancelled = false;

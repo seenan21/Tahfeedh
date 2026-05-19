@@ -1,4 +1,5 @@
 import { useCallback, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import type {
   ErrorType,
   ErrorSeverity,
@@ -28,7 +29,8 @@ export interface LoggedError {
   created_at: string;
 }
 
-export function useTestSession(testId: string) {
+export function useTestSession(testId: string, studentId: string) {
+  const queryClient = useQueryClient();
   const [errors, setErrors] = useState<LoggedError[]>([]);
   const [submitting, setSubmitting] = useState(false);
 
@@ -72,12 +74,25 @@ export function useTestSession(testId: string) {
             body: JSON.stringify({ rating, notes }),
           },
         );
+        // The post-test pipeline may have touched: page status (Today's new-
+        // lesson card frontier), ayah_review_state freshness, and
+        // error_location_stats. Invalidate everything that consumes them so
+        // the next Today / Mushaf load sees fresh data.
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: ['next_new_lesson', studentId] }),
+          queryClient.invalidateQueries({ queryKey: ['memorization_pages', studentId] }),
+          queryClient.invalidateQueries({ queryKey: ['error_location_stats', studentId] }),
+          queryClient.invalidateQueries({ queryKey: ['page_review_summary'] }),
+          queryClient.invalidateQueries({ queryKey: ['page_error_summary'] }),
+          queryClient.invalidateQueries({ queryKey: ['page_recent_tests'] }),
+          queryClient.invalidateQueries({ queryKey: ['in_progress_test', studentId] }),
+        ]);
         return res.summary;
       } finally {
         setSubmitting(false);
       }
     },
-    [testId],
+    [testId, studentId, queryClient],
   );
 
   return { errors, logError, finishTest, submitting };

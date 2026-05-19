@@ -28,15 +28,16 @@ interface PageStatusRow {
   status: MemorizationStatus;
 }
 
-async function fetchPageStatuses(studentId: string): Promise<Map<number, MemorizationStatus>> {
+// IMPORTANT: return a plain array, not a Map. React Query's structural-sharing
+// pass strips Maps to {} (it walks via Object.keys) — then `.get(p)` blows up
+// with "r.get is not a function" in minified prod builds.
+async function fetchPageStatuses(studentId: string): Promise<PageStatusRow[]> {
   const { data, error } = await supabase
     .from('memorization_page')
     .select('page_number, status')
     .eq('student_id', studentId);
   if (error) throw error;
-  const m = new Map<number, MemorizationStatus>();
-  for (const r of (data ?? []) as PageStatusRow[]) m.set(r.page_number, r.status);
-  return m;
+  return (data ?? []) as PageStatusRow[];
 }
 
 async function fetchNextNewLesson(): Promise<NextNewLesson | null> {
@@ -98,12 +99,18 @@ export function TestCreationModal({ opened, onClose, onCreated, studentId }: Pro
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  const { data: statuses } = useQuery({
+  const { data: statusRows } = useQuery({
     queryKey: ['memorization_pages', studentId],
     queryFn: () => fetchPageStatuses(studentId),
     enabled: opened,
     staleTime: 30_000,
   });
+
+  const statuses = useMemo<Map<number, MemorizationStatus>>(() => {
+    const m = new Map<number, MemorizationStatus>();
+    for (const r of statusRows ?? []) m.set(r.page_number, r.status);
+    return m;
+  }, [statusRows]);
 
   const { data: nextLesson } = useQuery({
     queryKey: ['next_new_lesson', studentId],
@@ -126,13 +133,13 @@ export function TestCreationModal({ opened, onClose, onCreated, studentId }: Pro
   const start = Number(pageStart);
   const end = Number(pageEnd);
   const liveError = useMemo(() => {
-    if (!statuses) return null;
+    if (!statusRows) return null;
     if (!Number.isInteger(start) || !Number.isInteger(end)) return null;
     return validateRange(testType, start, end, statuses);
-  }, [testType, start, end, statuses]);
+  }, [testType, start, end, statuses, statusRows]);
 
   const handleSubmit = async () => {
-    if (!statuses) {
+    if (!statusRows) {
       setError('Page status still loading — try again in a moment.');
       return;
     }

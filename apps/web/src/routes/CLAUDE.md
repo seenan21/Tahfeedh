@@ -11,7 +11,7 @@ TanStack file-based routes. **Convention:** files starting with `_authed.` live 
 | `_authed.today.tsx` | Student Today view: hero strip, 30-cell juz progress, plan card with empty slots | Touching the Today layout (DESIGN.md §14.4) |
 | `_authed.tests.tsx` | Tests empty state (Phase D placeholder) | Building the test creation/history flow |
 | `_authed.timeline.tsx` | Timeline empty state (M7 placeholder) | Building the timeline view |
-| `_authed.mushaf.tsx` | My Mushaf empty state (Phase C placeholder) | Building the 604-page mushaf grid |
+| `_authed.mushaf.tsx` | My Mushaf grid: hero strip + legend + 604-cell grid grouped by juz + `MarkPageModal` + reader `<Drawer>` driven by `MushafPage` | Touching the mushaf grid, marking flow, or page-reader drawer |
 | `_authed.goals.tsx` | Goals empty state (M8 placeholder) | Building goals UI / QF Goals API integration |
 | `_authed.settings.tsx` | Settings empty state | Building the settings page (Edit Memorization lives here) |
 | `_authed.students.tsx` | Teacher Students empty state (M6 placeholder) | Building the teacher's students list |

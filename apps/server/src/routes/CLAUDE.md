@@ -8,3 +8,4 @@ Express routers mounted by `apps/server/src/index.ts` under `/api/*`. Convention
 |---|---|---|---|
 | `qf.ts` | `/api/qf` | Proxies to QF Content API: `GET /chapters`, `GET /search?q=…&size=…` | Adding a QF endpoint, debugging QF auth |
 | `onboarding.ts` | `/api/onboarding` | `POST /finish` — verifies bearer token, expands selections, RPCs `commit_onboarding` (ADR 0008) | Touching onboarding finish behavior or adding related endpoints |
+| `memorization.ts` | `/api/memorization` | `POST /mark` — verifies bearer, expands `pageNumber` to its ayah set via `quran-index.json`, RPCs `mark_memorization` (ADR 0012) | Touching the marking endpoint or adding related endpoints |

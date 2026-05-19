@@ -5,6 +5,7 @@ import { homeRouteForRole } from '../lib/auth';
 import { StreakBadge } from '../today/StreakBadge';
 import { JuzProgressBar } from '../today/JuzProgressBar';
 import { EmptySlotCard } from '../today/EmptySlotCard';
+import { NewLessonCard } from '../today/NewLessonCard';
 
 export const Route = createFileRoute('/_authed/today')({
   beforeLoad: ({ context }) => {
@@ -96,13 +97,7 @@ function TodayPage() {
             }
             labelPosition="left"
           />
-          <EmptySlotCard
-            title="Your next page lands here"
-            icon={BookOpenText}
-            helper="Phase C wires the mushaf grid, then your next un-memorized page surfaces in this slot."
-            accent="sage"
-            badge="Phase C"
-          />
+          <NewLessonCard studentId={user.id} />
 
           <Divider
             label={

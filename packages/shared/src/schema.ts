@@ -49,3 +49,30 @@ export const onboardingFinishSchema = z.object({
 });
 
 export type OnboardingFinishInput = z.infer<typeof onboardingFinishSchema>;
+
+// Memorization marking (Phase C, ADR 0012).
+
+export const ayahKeySchema = z.object({
+  surah: z.number().int().min(1).max(114),
+  ayah: z.number().int().min(1),
+});
+
+export const markMemorizationSchema = z
+  .object({
+    pageNumber: z.number().int().min(1).max(604),
+    status: z.enum(['memorized', 'in_progress', 'untouched']),
+    verses: z.array(ayahKeySchema).optional(),
+  })
+  .superRefine((val, ctx) => {
+    if (val.status === 'in_progress') {
+      if (!val.verses || val.verses.length === 0) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "verses[] is required and non-empty when status is 'in_progress'",
+          path: ['verses'],
+        });
+      }
+    }
+  });
+
+export type MarkMemorizationInputParsed = z.infer<typeof markMemorizationSchema>;

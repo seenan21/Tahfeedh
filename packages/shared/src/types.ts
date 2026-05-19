@@ -43,15 +43,20 @@ export type TestRange =
   | { type: 'rub'; rub: number };
 
 // Mushaf page data (emitted by scripts/build-quran-data.ts)
+// Words carry a Private Use Area code point (`code_v2`) that only renders
+// correctly against the matching per-page QPC V2 font — see ADR 0003.
 
 export type LineType = 'ayah' | 'surah_name' | 'basmallah';
+
+export type WordCharType = 'word' | 'end' | 'pause' | 'rub-el-hizb' | 'sajdah';
 
 export interface MushafWord {
   id: string;
   surah: number;
   ayah: number;
   position: number;
-  text: string;
+  code_v2: string;
+  char_type: WordCharType;
 }
 
 export interface MushafLine {
@@ -62,9 +67,39 @@ export interface MushafLine {
   words: MushafWord[];
 }
 
+export interface MidpointAyahBreak {
+  first_half_last_ayah: { surah: number; ayah: number };
+  second_half_first_ayah: { surah: number; ayah: number };
+  first_half_line_count: number;
+  second_half_line_count: number;
+}
+
 export interface MushafPageData {
   page_number: number;
   lines: MushafLine[];
+  midpoint_ayah_break: MidpointAyahBreak;
+}
+
+// Marking endpoint (Phase C — ADR 0012)
+
+export type MemorizationMarkStatus = 'memorized' | 'in_progress' | 'untouched';
+
+// Wire payload to POST /api/memorization/mark. The server expands `pageNumber`
+// into the page's full ayah set before calling mark_memorization SQL fn.
+export interface MarkMemorizationInput {
+  pageNumber: number;
+  status: MemorizationMarkStatus;
+  // Required when status === 'in_progress'. Each entry must be an ayah that
+  // lives on `pageNumber` (validated server-side against quran-index.json).
+  verses?: Array<{ surah: number; ayah: number }>;
+}
+
+// Queue 1 RPC return shape (next_new_lesson, ADR 0013)
+export type NextNewLessonKind = 'continue' | 'begin';
+
+export interface NextNewLesson {
+  page_number: number;
+  kind: NextNewLessonKind;
 }
 
 // Quran index (emitted by scripts/build-quran-data.ts → quran-index.json)

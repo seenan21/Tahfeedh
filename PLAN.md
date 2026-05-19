@@ -10,10 +10,13 @@
 
 - **M1 (Foundation):** done — monorepo, Vite+Mantine, Express, Supabase project, env wiring. Migrations 0001–0013 applied. Auth (signup with role, login, sign-out) wired.
 - **Phase A:** done — `_authed` layout route gates on auth + onboarding, AppShell with role-aware sidebar, stub routes for all sidebar items, onboarding stub flipped the gate.
-- **Phase B:** done — half-page schema (0013) + `commit_onboarding` SQL fn, derived `quran-index.json` artifact, `POST /api/onboarding/finish` endpoint, real 3-step onboarding flow (juz grid + searchable surah list + partial-page picker + half-page session-size), Today skeleton (streak + juz-progress + empty slots), visual polish (SilkBackground on auth, bilingual hero, user-menu dropdown, Lucide sidebar icons, bilingual EmptyState on every stub route).
-- **M2 (Mushaf), data half:** done — 604 per-page JSON files, metadata.json, 604 page-scoped QPC V2 fonts auto-loaded via generated CSS, deploy wiring (`npm run build:web`).
-- **M2 (Mushaf), components half:** not started — no `<MushafPage />`, no grid view yet.
-- **Design surface:** stable. Latest ADRs: 0006 (NUMERIC half-page), 0007 (quran-index artifact), 0008 (onboarding bulk-write via Express + SQL fn), 0009 (SilkBackground entry-points only), 0010 (modernized shell: depth gradients + glassy header + 30-cell juz grid + CSS-module sidebar).
+- **Phase B:** done — half-page schema (0013) + `commit_onboarding` SQL fn, derived `quran-index.json` artifact, `POST /api/onboarding/finish` endpoint, real 3-step onboarding flow (juz grid + searchable surah list + partial-page picker + half-page session-size), Today skeleton (streak + juz-progress + empty slots), full visual polish pass (SilkBackground on auth, glassy header with user menu, gradient sidebar with CSS-module three-state styling, 30-cell juz progress grid, bilingual EmptyState on every stub route).
+- **Doc surface:** done — DESIGN.md + DESIGN-SYSTEM.md patched to reflect shipped state; 25 navigation `CLAUDE.md` files across the project (root + every code subdir).
+- **Deploy surface (Railway):** healthy — `@tahfeedh/shared` builds to `dist/` (root scripts enforce shared → server → web order), Node engine pinned to 22 (`.nvmrc` + `engines.node` for the WebSocket-realtime requirement). Railway build command is `npm install --include=dev && npm run build:server`; set `NIXPACKS_NODE_VERSION=22` in Railway env vars.
+- **M2 (Mushaf), data half:** done — 604 per-page JSON files, metadata.json, derived quran-index.json, 604 page-scoped QPC V2 fonts auto-loaded via generated CSS, deploy wiring (`npm run build:web`).
+- **M2 (Mushaf), components half:** done — `<MushafPage />` renderer (lazy per-page JSON + per-page font + RTL + delegated word/verse taps), 604-page grid grouped by juz, `MarkPageModal`, and a reader Drawer all shipped under `apps/web/src/mushaf/`.
+- **Phase C:** done (2026-05-18) — Mushaf renderer + grid + marking endpoint + Queue 1 RPC. ADRs 0012 (marking endpoint shape), 0013 (Queue 1 lives in Postgres). Migration `0014_marking_and_next_lesson` is staged on disk; **needs to be applied** (the marking endpoint and `next_new_lesson` RPC won't function until the migration is live in the remote DB).
+- **Design surface:** stable. Latest ADRs: 0007 (quran-index artifact), 0008 (onboarding bulk-write), 0009 (SilkBackground entry-points only), 0010 (modernized shell), 0011 (error overlay merge at render time), 0012 (memorization marking endpoint), 0013 (next_new_lesson RPC).
 
 ---
 
@@ -40,18 +43,24 @@ Closed M3's first half. ADRs 0006–0009 captured. Migration 0013, `quran-index.
 
 ---
 
-## Phase C — Mushaf renderer + memorization marking (M2 components + M3 second half)
+## Phase C — Mushaf renderer + memorization marking (M2 components + M3 second half) ✅ Complete (2026-05-18)
 
-7. **`<MushafPage />`** — dynamic-imports `pages/{N}.json`, applies `font-family: 'QPC V2 P{N}'`, RTL container, word+verse tap handlers, three overlay modes (stub data).
-8. **My Mushaf grid** — 604-page grid colored by `memorization_page` status.
-9. **Memorization marking** — tap a grid page → mark memorized/in-progress; partial-page writes `memorization_verse`.
-10. **Algorithm Queue 1** — next-unmemorized-page; Today shows a real new-lesson row.
+7. **`<MushafPage />`** — dynamic-imports `pages/{N}.json` via `apps/web/src/data/quran-data.ts` helpers, applies `font-family: 'QPC V2 P{N}'` (loaded by `quran-fonts.css`), RTL container, word+verse tap handlers, three overlay modes (memorization status / heatmap / error type) — overlay data stubbed for now (real data lands in Phase D).
+8. **My Mushaf grid** — replace `_authed.mushaf.tsx` empty state with a 604-page grid colored by `memorization_page` status (sage.7 mastered, sage.4 memorized, honey.4 in-progress, white untouched — match `JuzProgressBar`). Tap a page → drill into `<MushafPage />`.
+9. **Memorization marking** — tap a grid page → bottom-sheet/modal to mark memorized/in-progress; partial-page state writes `memorization_verse` rows. Reuse the SQL pattern from `commit_onboarding` (service-role write through Express endpoint, since `ayah_review_state` writes also need to fire for newly-memorized pages).
+10. **Algorithm Queue 1** — next-unmemorized-page logic (DESIGN.md §7.2). Wire `_authed.today.tsx` new-lesson empty slot to a real query that finds the highest contiguous-memorized frontier and surfaces the next page.
 
-**Demoable:** mark pages → grid fills → Today recomputes → drill into any page's mushaf.
+**Demoable:** mark pages on the grid → grid fills in → Today recomputes the new-lesson row → drill into any page's mushaf with overlays.
+
+**Touches:**
+- New: `apps/web/src/components/MushafPage.tsx` (+ overlay components), `apps/web/src/mushaf/MushafGrid.tsx` (or under `apps/web/src/routes/_authed.mushaf.tsx`)
+- New: `apps/server/src/routes/memorization.ts` + SQL function for marking endpoints (migration 0014)
+- Update: `_authed.today.tsx` to render the real new-lesson card when frontier is found
+- Likely ADR: marking endpoint shape + algorithm-queue-1 implementation choice (server-side derived view vs client-computed)
 
 ---
 
-## Phase D — Tests + errors end-to-end (M4)
+## Phase D — Tests + errors end-to-end (M4) ⬅️ **NEXT**
 
 11. **Test creation flow** — pick type + range; shared between enrolled teacher and student-initiated guest path.
 12. **Live test view** — MushafPage + error logging modal (8 types + severity + note).
@@ -91,7 +100,9 @@ In order of "drop first":
 
 ## Read these before resuming work
 
-1. `DESIGN.md` table of contents + §19 milestone plan
-2. `decisions/` — at least 0002, 0003, 0004 (the divergences from DESIGN.md)
-3. `DESIGN-SYSTEM.md` — color tokens, type scale, component recipes
-4. This file's "Where we are" section
+1. This file's "Where we are" section
+2. `CHANGELOG.md` `[Unreleased]` — the running diff list
+3. `decisions/` — start with 0010 (current visual conventions), 0008 (server bulk-write pattern Phase C will reuse), then 0002/0003 (mushaf data) since Phase C touches MushafPage
+4. `DESIGN.md` §7 (algorithm), §10 (mushaf rendering), §14.4 (Today view)
+5. `DESIGN-SYSTEM.md` — color tokens, type scale, sidebar/empty-state recipes
+6. Per-directory `CLAUDE.md` files (root has the navigation table; each code dir has a tabular index)

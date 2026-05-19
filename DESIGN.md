@@ -701,6 +701,64 @@ When a user taps an error overlay:
 4. **Trend** — ↓ improving / ↑ recurring / ✓ cleared
 5. **Quick action** — "Mark as resolved" (manual override, sets `cleared = true`)
 
+### 9.7 Overlay rendering & overlap handling
+
+Errors render as visual overlays on the mushaf at the most precise scope they have, with merging happening at the click target and the modal — never at the storage level.
+
+**Rendering rules per scope**
+
+| Error scope | How `error_log` row looks | Visual rendering |
+|---|---|---|
+| Single word | `word_position` set, `word_position_end` NULL or equal | Small dot/underline beneath that word |
+| Word range | `word_position` and `word_position_end` set (different values) | Continuous underline across all words in range |
+| Whole verse | `word_position` and `word_position_end` both NULL | Small icon at the verse end (near the ۝ marker) or subtle background tint on the verse number |
+| Cross-verse jump | `related_surah` / `related_ayah` populated | Rendered at the source verse like a verse-scope error; modal shows the related destination |
+
+**Multiple errors at the same location**
+
+Three overlap cases handled by one rule: one marker per visual location, modal consolidates the list.
+
+- **Case 1 — Same word, multiple historical errors:** Word 5 of Baqarah 35 has a tajweed error from one test and an omission error from another. One marker beneath word 5. Heatmap intensity reflects the combined intensity (per §9.5). Badge shows the count.
+- **Case 2 — Different scopes touching the same words:** A word-level error on word 5 and a verse-level error on the same ayah. Both render — word marker beneath word 5, verse marker at verse end — because they occupy different visual positions.
+- **Case 3 — Multiple errors at the same location in one test:** Teacher logs both "tajweed on word 5" and "hesitation on word 5" in a single test. One marker, count of 2.
+
+**Word ranges in overlap aggregation:** an error with `word_position=5, word_position_end=8` is associated with words 5, 6, 7, and 8 for marker-aggregation. Tapping any of those words opens a modal that includes this error.
+
+**Count badges**
+
+Markers with more than one associated error show a small numeric badge (e.g., "3"). The badge appears:
+
+- Top-right corner of word markers (small, ~10px circle)
+- Adjacent to verse-end markers
+
+Active in all three overlay modes (`simple`, `heatmap`, `colored`). The badge improves at-a-glance density signal even when the marker itself is colored.
+
+**Visual density guardrail**
+
+If a single word has more than 5 associated errors, render one marker with badge "5+" rather than stacking visual indicators. Modal still shows all errors when tapped. Same rule applies at verse-marker positions.
+
+**Tap behavior**
+
+Tapping any marker opens the error detail modal (§9.6) scoped to that location:
+
+- Word marker → modal shows all errors associated with that word position (including any word-range errors that overlap it)
+- Verse-end marker → modal shows all verse-scope errors for that ayah (excludes word-scope errors)
+
+Modal lists errors grouped by signature, then chronologically within each signature:
+
+```
+Word 5 of Al-Baqarah, ayah 35 — 3 historical errors
+
+Tajweed (2 times)
+  ↳ Test on Mar 15, 2026 — moderate, "ikhfa missed"
+  ↳ Test on Feb 28, 2026 — minor
+
+Omission (1 time)
+  ↳ Test on Mar 8, 2026 — moderate, "skipped quickly"
+
+[Mark all as resolved]
+```
+
 ---
 
 ## 10. Mushaf Rendering
@@ -778,11 +836,24 @@ Internally:
 | Mode | Visual |
 |---|---|
 | `none` | Clean mushaf, no overlays |
-| `simple` | Red highlight on any word/verse with prior errors |
-| `heatmap` | Sequential color ramp: `yellow.3` → `orange.6` → `red.9` by intensity |
-| `colored` | Color by error type (see §15) |
+| `simple` | Red marker per error location (word/range/verse), with count badge when >1 |
+| `heatmap` | Markers colored by intensity ramp: `yellow.3` → `orange.6` → `red.9` per §9.5 |
+| `colored` | Markers colored by error type per §15.1; if multiple types share a location, the marker uses the type of the most-recent error and the modal shows the rest |
 
-User toggles between modes with four buttons above the mushaf. Tapping a highlighted location opens the error detail modal.
+User toggles between modes with four buttons above the mushaf. Tapping a highlighted location opens the error detail modal per §9.6 + §9.7.
+
+Markers and badges render via two parallel computation functions in the frontend:
+
+```typescript
+function getOverlayMarkers(pageNumber, stats, mode):
+  word_markers: Array<{ surah, ayah, word_position, intensity, count, signatures, color }>,
+  verse_markers: Array<{ surah, ayah, intensity, count, signatures, color }>
+
+function getErrorsAtLocation(scope: 'word' | 'verse', surah, ayah, word_position?):
+  ErrorLog[]
+```
+
+Both functions read from `error_location_stats` (for intensity / aggregation) joined with `error_log` (for individual occurrence details surfaced in the modal).
 
 ### 10.5 Font setup
 
@@ -1538,6 +1609,13 @@ Mushaf is RTL. UI is LTR. Make sure the mushaf container has `dir="rtl"` while t
 
 ### 20.13 Re-onboarding edge cases
 When a user uses Settings → Edit Memorization to mark *additional* memorization beyond what was originally captured, the new pages/ayahs should get `last_reviewed_at = now - 30 days` (same as original onboarding). If they mark pages as *no longer memorized* (e.g., they over-claimed at onboarding), decide: hard delete the rows, or set status back to `in_progress`. Recommend soft (status reset) to preserve any test history that might exist. Handle in M7.
+
+### 20.14 Marker visual style and badge legibility
+Word markers need to be visually distinct enough to be tappable on mobile (44×44px minimum tap target per accessibility guidelines) without crowding the mushaf text. Initial implementation: a 6px dot positioned ~4px beneath the word's baseline, with an invisible 44×44px tap-target wrapper. Badge text uses 9–10px font at high contrast. Test legibility at 22px mushaf font on mobile during M2 — if dots interfere with reading, switch to a subtle underline style.
+
+For verse-end markers: position adjacent to the ۝ ayah number marker. Keep small enough that an unaffected verse and an error-marked verse look near-identical at a glance — the overlay should augment the mushaf, not replace its visual identity.
+
+When multiple errors aggregate at one location, the marker's intensity = max of individual intensities (single hottest error drives the color).
 
 ---
 

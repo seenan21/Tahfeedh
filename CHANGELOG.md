@@ -3,6 +3,14 @@
 ## [Unreleased]
 
 ### Added
+- Migration `0014_marking_and_next_lesson` (staged on disk; not yet applied to remote) — `mark_memorization(uuid, jsonb)` SECURITY DEFINER function for service-role writes across `memorization_page`, `memorization_verse`, `ayah_review_state` in one transaction (ADR 0012); `next_new_lesson(uuid)` SECURITY DEFINER function for Queue 1 frontier walk granted to `authenticated` (ADR 0013).
+- `POST /api/memorization/mark` Express endpoint — verifies bearer, validates payload with `markMemorizationSchema`, expands `pageNumber` into the page's ayah set via `apps/server/src/memorization/pageAyahs.ts`, RPC-calls `mark_memorization`. Mounted in `apps/server/src/index.ts`.
+- Shared types: `MarkMemorizationInput`, `MemorizationMarkStatus`, `NextNewLesson`, `NextNewLessonKind`, `MidpointAyahBreak`; `MushafWord` now carries `code_v2 + char_type` (matches the per-page JSON emitted by `build-quran-data.ts` and ADR 0003). Shared schema adds `markMemorizationSchema` + `ayahKeySchema` (Zod).
+- `apps/web/src/mushaf/MushafPage.tsx` — renderer for one Madani 15-line page (lazy-loads `pages/{N}.json`, applies `font-family: 'QPC V2 P{N}'`, single delegated click handler for word + verse taps). Accepts `overlays + overlayMode` props for Phase D (stubbed: only `'none'` rendered). `compact` prop for grid drill-down peeks.
+- `apps/web/src/mushaf/MushafGrid.tsx` — 604-page grid grouped by juz, colored by `memorization_page.status` (same palette as `JuzProgressBar`). Tap → `onPick(pageNumber)`.
+- `apps/web/src/mushaf/MarkPageModal.tsx` — bottom-sheet style modal with segmented control (Untouched / First half / Second half / Memorized). For in-progress halves, expands ayahs against `midpoint_ayah_break` and POSTs to `/api/memorization/mark`; invalidates `memorization_pages` + `next_new_lesson` queries on success.
+- `apps/web/src/today/NewLessonCard.tsx` — replaces the new-lesson `EmptySlotCard`. Calls `supabase.rpc('next_new_lesson')` and renders "Begin page N · surah" / "Continue page N · surah" with an "Open mushaf" CTA. Falls back to a hifz-complete empty state when the RPC returns no row.
+- `_authed.mushaf.tsx` rewritten: bilingual hero + status legend, the 604-cell grid, `MarkPageModal`, and a side `Drawer` housing `MushafPage` for the reader.
 - Migration `0011_guest_witnessed_tests` — implements ADR 0004: `test_mode` enum, nullable `test.teacher_id`, `guest_tester_name` column, witness check constraint, and student-write RLS policies for guest-witnessed tests and their `error_log` rows.
 - Migration `0012_onboarding_complete` — adds `student_settings.onboarding_complete` boolean used by the `_authed` route gate.
 - Migration `0013_session_size_and_onboarding_writes` — alters `pages_per_session_new` to `NUMERIC(3,1)` for half-page support, bounds both per-session counters at 20, and adds the `commit_onboarding(uuid, jsonb)` SECURITY DEFINER function granted only to the service role (ADRs 0006, 0008).
@@ -17,6 +25,7 @@
 - App-shell modernization (ADR 0010): radial mihrab gradient on `AppShell.main`, `backdrop-filter: blur` glassy header, parchment→sage gradient sidebar with the brand wordmark moved inside it, bilingual nav rows (English left / Arabic right), three-state CSS module styling driven by `useMatchRoute` + `[data-active]` (fixes the hover-sticks bug). Today view rebuilt with a hero strip on the dark ground, a 30-cell juz grid colored by status, a gradient flame streak badge, and refined slot cards with colored icon halos. Empty-state hero pattern (88px iconHalo, tag chip, fade-in animation) on every stub route.
 
 ### Changed
+- DESIGN.md §9.7 added (overlay rendering & overlap handling): per-scope render rules, the three overlap cases, count badges, the 5+ density guardrail, and modal grouping. DESIGN.md §10.4 rewritten with the `getOverlayMarkers` / `getErrorsAtLocation` contract. DESIGN.md §20.14 added: marker tap-target size, baseline offset, badge typography, and the max-intensity-wins color rule. Captured as ADR 0011 (merge at render time, never at storage).
 - `getCurrentUser` now returns `onboardingComplete`. Teachers always `true`; students read from `student_settings`.
 - Login, signup, and root index routes redirect via new `landingRouteForUser` helper so students with incomplete onboarding land on `/onboarding`.
 - `__root.tsx` stripped to a bare provider — AppShell now lives inside `_authed.tsx`.

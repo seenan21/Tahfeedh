@@ -38,7 +38,6 @@ interface MemorizedPageRow {
 }
 
 const LAST_PAGE_KEY = 'tahfeedh:mushaf:lastPage';
-const OVERLAY_MODE_KEY = 'tahfeedh:mushaf:overlayMode';
 
 async function fetchPages(studentId: string): Promise<MemorizedPageRow[]> {
   const { data, error } = await supabase
@@ -62,12 +61,10 @@ async function fetchErrorStats(studentId: string): Promise<ErrorLocationStatsRow
   return (data as unknown as ErrorLocationStatsRow[] | null) ?? [];
 }
 
-function readStoredOverlayMode(): OverlayMode {
-  if (typeof window === 'undefined') return 'heatmap';
-  const raw = window.localStorage.getItem(OVERLAY_MODE_KEY);
-  // Accept legacy values from when there were 4 modes — collapse to on/off.
-  if (raw === 'none') return 'none';
-  if (raw === 'heatmap' || raw === 'simple' || raw === 'colored') return 'heatmap';
+// Per user pref: "Show errors" always starts ON each time the route mounts.
+// The toggle is still a per-session control — flipping it off only lasts for
+// the current visit; the next time you arrive at /mushaf, errors are on again.
+function initialOverlayMode(): OverlayMode {
   return 'heatmap';
 }
 
@@ -87,13 +84,7 @@ function MushafRoute() {
   const [selectedPage, setSelectedPage] = useState<number>(() => readStoredPage() ?? 0);
   const [pendingJump, setPendingJump] = useState<number | string>('');
 
-  const [overlayMode, setOverlayMode] = useState<OverlayMode>(() => readStoredOverlayMode());
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      window.localStorage.setItem(OVERLAY_MODE_KEY, overlayMode);
-    }
-  }, [overlayMode]);
+  const [overlayMode, setOverlayMode] = useState<OverlayMode>(() => initialOverlayMode());
 
   const { data: pagesData, isLoading: pagesLoading } = useQuery({
     queryKey: ['memorization_pages', user.id],
@@ -218,11 +209,11 @@ function MushafRoute() {
               </ActionIcon>
             </Tooltip>
             <Stack gap={0} align="center">
-              <Text size="xs" c="dimmed" fw={600}>
+              <Text size="xs" c="parchment.0" fw={600} style={{ opacity: 0.92 }}>
                 Page {selectedPage || '—'} / 604
               </Text>
               {currentJuz && (
-                <Text size="xs" c="dimmed">
+                <Text size="xs" c="parchment.0" style={{ opacity: 0.7 }}>
                   Juz {currentJuz}
                 </Text>
               )}
@@ -247,10 +238,18 @@ function MushafRoute() {
               label="Show errors"
               checked={overlayMode === 'heatmap'}
               onChange={(e) => setOverlayMode(e.currentTarget.checked ? 'heatmap' : 'none')}
-              styles={{ label: { fontSize: 12 } }}
+              color="sage.5"
+              styles={{
+                label: {
+                  fontSize: 12,
+                  color: 'var(--mantine-color-parchment-0)',
+                  opacity: 0.92,
+                },
+                track: { cursor: 'pointer' },
+              }}
             />
             <Group gap="xs" align="center">
-              <Text size="xs" c="dimmed">
+              <Text size="xs" c="parchment.0" style={{ opacity: 0.85 }}>
                 Jump to
               </Text>
               <NumberInput

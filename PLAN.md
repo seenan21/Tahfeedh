@@ -152,7 +152,7 @@ This is the differentiator phase. Status changes happen *here* — the post-test
 
 - **M5 (partial done)** — frozen `daily_session` + simple revision shipped 2026-05-19 (ADR 0020). Still owed: full Queue 2 stage machine + Queue 3 priority math (§7.2-7.3), mastery promotion + fail-downgrade in `submit_test`, streak coverage check against the new attempted-flag.
 - **M6** — Teacher dashboard + groups + invite codes.
-- **M7** — Timeline view, error detail modal, **Edit Memorization** (the deferred Settings flow — see `notes-for-future.md`), mobile sweep, PWA.
+- **M7** — Timeline view, error detail modal (per-occurrence list + ghost-error reveal — ADR 0023), **Edit Memorization** (the deferred Settings flow — see `notes-for-future.md`), mobile sweep, PWA.
 - **M8** — QF User APIs (Bookmarks + Goals OAuth flow).
 - **M9** — Mutashabihat (conditional).
 - **M10** — Seed data + demo prep.

@@ -23,6 +23,7 @@ import { Route as AuthedGroupsRouteImport } from './routes/_authed.groups'
 import { Route as AuthedGoalsRouteImport } from './routes/_authed.goals'
 import { Route as AuthedTestsIndexRouteImport } from './routes/_authed.tests.index'
 import { Route as AuthedTestsTestIdRouteImport } from './routes/_authed.tests.$testId'
+import { Route as AuthedTestsTestIdRecapRouteImport } from './routes/_authed.tests.$testId.recap'
 
 const SignupRoute = SignupRouteImport.update({
   id: '/signup',
@@ -93,6 +94,11 @@ const AuthedTestsTestIdRoute = AuthedTestsTestIdRouteImport.update({
   path: '/tests/$testId',
   getParentRoute: () => AuthedRoute,
 } as any)
+const AuthedTestsTestIdRecapRoute = AuthedTestsTestIdRecapRouteImport.update({
+  id: '/recap',
+  path: '/recap',
+  getParentRoute: () => AuthedTestsTestIdRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -106,8 +112,9 @@ export interface FileRoutesByFullPath {
   '/students': typeof AuthedStudentsRoute
   '/timeline': typeof AuthedTimelineRoute
   '/today': typeof AuthedTodayRoute
-  '/tests/$testId': typeof AuthedTestsTestIdRoute
+  '/tests/$testId': typeof AuthedTestsTestIdRouteWithChildren
   '/tests/': typeof AuthedTestsIndexRoute
+  '/tests/$testId/recap': typeof AuthedTestsTestIdRecapRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -121,8 +128,9 @@ export interface FileRoutesByTo {
   '/students': typeof AuthedStudentsRoute
   '/timeline': typeof AuthedTimelineRoute
   '/today': typeof AuthedTodayRoute
-  '/tests/$testId': typeof AuthedTestsTestIdRoute
+  '/tests/$testId': typeof AuthedTestsTestIdRouteWithChildren
   '/tests': typeof AuthedTestsIndexRoute
+  '/tests/$testId/recap': typeof AuthedTestsTestIdRecapRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -138,8 +146,9 @@ export interface FileRoutesById {
   '/_authed/students': typeof AuthedStudentsRoute
   '/_authed/timeline': typeof AuthedTimelineRoute
   '/_authed/today': typeof AuthedTodayRoute
-  '/_authed/tests/$testId': typeof AuthedTestsTestIdRoute
+  '/_authed/tests/$testId': typeof AuthedTestsTestIdRouteWithChildren
   '/_authed/tests/': typeof AuthedTestsIndexRoute
+  '/_authed/tests/$testId/recap': typeof AuthedTestsTestIdRecapRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -157,6 +166,7 @@ export interface FileRouteTypes {
     | '/today'
     | '/tests/$testId'
     | '/tests/'
+    | '/tests/$testId/recap'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -172,6 +182,7 @@ export interface FileRouteTypes {
     | '/today'
     | '/tests/$testId'
     | '/tests'
+    | '/tests/$testId/recap'
   id:
     | '__root__'
     | '/'
@@ -188,6 +199,7 @@ export interface FileRouteTypes {
     | '/_authed/today'
     | '/_authed/tests/$testId'
     | '/_authed/tests/'
+    | '/_authed/tests/$testId/recap'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -298,8 +310,26 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedTestsTestIdRouteImport
       parentRoute: typeof AuthedRoute
     }
+    '/_authed/tests/$testId/recap': {
+      id: '/_authed/tests/$testId/recap'
+      path: '/recap'
+      fullPath: '/tests/$testId/recap'
+      preLoaderRoute: typeof AuthedTestsTestIdRecapRouteImport
+      parentRoute: typeof AuthedTestsTestIdRoute
+    }
   }
 }
+
+interface AuthedTestsTestIdRouteChildren {
+  AuthedTestsTestIdRecapRoute: typeof AuthedTestsTestIdRecapRoute
+}
+
+const AuthedTestsTestIdRouteChildren: AuthedTestsTestIdRouteChildren = {
+  AuthedTestsTestIdRecapRoute: AuthedTestsTestIdRecapRoute,
+}
+
+const AuthedTestsTestIdRouteWithChildren =
+  AuthedTestsTestIdRoute._addFileChildren(AuthedTestsTestIdRouteChildren)
 
 interface AuthedRouteChildren {
   AuthedGoalsRoute: typeof AuthedGoalsRoute
@@ -309,7 +339,7 @@ interface AuthedRouteChildren {
   AuthedStudentsRoute: typeof AuthedStudentsRoute
   AuthedTimelineRoute: typeof AuthedTimelineRoute
   AuthedTodayRoute: typeof AuthedTodayRoute
-  AuthedTestsTestIdRoute: typeof AuthedTestsTestIdRoute
+  AuthedTestsTestIdRoute: typeof AuthedTestsTestIdRouteWithChildren
   AuthedTestsIndexRoute: typeof AuthedTestsIndexRoute
 }
 
@@ -321,7 +351,7 @@ const AuthedRouteChildren: AuthedRouteChildren = {
   AuthedStudentsRoute: AuthedStudentsRoute,
   AuthedTimelineRoute: AuthedTimelineRoute,
   AuthedTodayRoute: AuthedTodayRoute,
-  AuthedTestsTestIdRoute: AuthedTestsTestIdRoute,
+  AuthedTestsTestIdRoute: AuthedTestsTestIdRouteWithChildren,
   AuthedTestsIndexRoute: AuthedTestsIndexRoute,
 }
 

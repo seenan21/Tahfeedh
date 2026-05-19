@@ -196,8 +196,8 @@ export function TestCreationModal({ opened, onClose, onCreated, studentId }: Pro
       <Stack gap="md">
         <Alert color="sage" variant="light" radius="md">
           <Text size="xs">
-            Find a witness — a teacher, parent, or anyone who hears Quran. Self-administered tests
-            aren’t tests. The pedagogy depends on a human ear (ADR 0004).
+            This is a self-test you run from your device. Pick someone listening to your
+            recitation — a teacher, parent, sibling, or friend — as the witness, then start.
           </Text>
         </Alert>
 

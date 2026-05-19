@@ -2,6 +2,28 @@
 
 ## [Unreleased]
 
+### Changed — Design notes for M7
+- **ADR 0023** (`decisions/0023-error-detail-modal-design.md`) — captures the error detail modal design intent: list every individual `error_log` occurrence at the tapped location (not summarized), and hide `cleared = true` rows by default behind a "ghost errors — show" reveal. No code yet; M7 work.
+- **DESIGN.md §9.6** updated — modal lists per-occurrence rows; ghost-error rules added.
+- **DESIGN.md §20.15** added — open question: within-signature sort key (severity-first vs. recency-first), decide during M7.
+- **DESIGN.md M7 milestone bullet** updated to mention ghost-error reveal.
+- **Plan.Md M7 line** updated with same reference.
+
+### Added — Test recap (read-only history view)
+- **Migration `0019_test_summary_persistence.sql` (applied).** Adds `test.summary jsonb` and rewrites `submit_test()` to `UPDATE test SET summary = v_summary` immediately before returning. Extends ADR 0017 (one fat fn) with one side-effect write so the read-only recap can render historical NEW/RECURRING/CLEARED — `error_location_stats` is global mutable state and can't be back-derived once subsequent tests decay/overwrite the counters. (ADR 0022).
+- **`apps/web/src/routes/_authed.tests.$testId.recap.tsx`** — new read-only route. Renders `<TestRecapView>` for completed/abandoned tests.
+- **`apps/web/src/features/live-test/TestRecapView.tsx`** — fetches the `test` row + `error_log` rows (both via direct Supabase + existing student-select RLS). Renders header (type · range · ended_at · duration · witness · rating badge), notes block, persisted post-test summary (or "summary unavailable for tests before this date" placeholder), and the full logged-errors list.
+- **`apps/web/src/features/live-test/LoggedErrorsList.tsx`** — extracted from `ErrorLogPane.tsx`; shared by the live-test sidebar and the recap. Optional `showTrashAffordance` keeps the future-affordance disabled trash icon on the live side only.
+- **`apps/web/src/features/live-test/PostTestSummaryView.tsx`** — extracted from `PostTestSummaryModal.tsx`; same NEW/RECURRING/CLEARED sections, no Modal/Close wrapper. Reused by the modal (live flow) and the recap.
+- **ADR 0022** (`decisions/0022-test-recap-route-and-persisted-summary.md`) — the route + persistence pair.
+
+### Changed — Test recap
+- **`apps/web/src/features/live-test/LiveTestRoute.tsx`** — completed/abandoned tests now redirect to `/tests/:id/recap` (`replace: true`) instead of rendering the "already completed" alert. Effect-based, not render-side.
+- **`apps/web/src/routes/_authed.tests.index.tsx`** — history rows now navigate to `/tests/:id/recap`.
+- **`apps/web/src/features/live-test/ErrorLogPane.tsx`** — error-list ScrollArea replaced by `<LoggedErrorsList errors={errors} showTrashAffordance />`. No behavior change.
+- **`apps/web/src/features/live-test/PostTestSummaryModal.tsx`** — body delegates to `<PostTestSummaryView summary={summary} />`. Modal keeps the Done button + duration badge.
+- **ADR 0020 (tests-landing recent history) renumbered to ADR 0021** — collided with the Phase E `0020-frozen-daily-session.md` that landed alongside. File renamed `0020-tests-landing-shows-recent-history.md → 0021-...`; CHANGELOG reference + decisions/CLAUDE.md index updated.
+
 ### Added — Phase E (M5) — Today's Session machine + simple revision queue
 - **Migration `0017_daily_session.sql` (applied).** New `daily_session` table — one row per `(student_id, session_date, session_index)` holding `new_lesson_pages int[]` + `revision_pages int[]`. RLS: students read their own rows; teachers via `is_my_student`. All inserts go through SECURITY DEFINER RPCs (ADR 0020).
 - **`today_session(uuid)` SQL RPC** — the Today read entry point. Returns the latest session row for `current_date`, auto-creating `session_index = 1` on first call of a new calendar day. Joins page-typed completed-test ranges to attach per-page `attempted` flags (any closed test today whose range covers the page checks the row — pass or fail both count). Granted `authenticated`.
@@ -12,6 +34,9 @@
 - **Cache invalidation** — `useTestSession.finishTest` now invalidates `['today_session', studentId]` so attempted-checkmarks refresh after a test ends (`apps/web/src/features/live-test/useTestSession.ts`).
 - **Shared types** — `TodaySession`, `TodaySessionRow` added to `@tahfeedh/shared`.
 - **ADR 0020** (`decisions/0020-frozen-daily-session.md`) — captures the frozen-plan decision, the anti-gaming rationale, and the deferred Queue 2/3 priority math.
+
+### Fixed — M5
+- **Migration `0018_fix_session_rpc_ambiguity.sql` (applied).** Today's session card was failing with `column reference "session_date" is ambiguous` because `RETURNS TABLE(session_date date, session_index int, …)` OUT parameters shadow the table columns inside the function body under Postgres 15+. Qualified every column reference in `today_session`, `load_next_session`, and `session_status_today` (which had the same latent bug since 0006 — surfaced by `StreakBadge` once the Today route started exercising both RPCs).
 
 ### Changed — M5
 - **DESIGN.md §7.1 patched** — replaced "computed on read each time the student opens the Today view" with the persisted-plan model. The completion-state derivation principle is preserved; only the plan-storage rule changed. Cross-references ADR 0020.
@@ -32,7 +57,7 @@
   - `useTestSession.ts` — hook holding `errors[]` + `logError()` + `finishTest()`.
   - `useTestPages.ts` — derives the candidate page list from a test's ranges (mirrors `resolveTestRanges` for the client).
 - **Tests sidebar route updated** (`apps/web/src/routes/_authed.tests.tsx`): Begin-Test CTA + trust nudge; resumes an in-progress test if one exists; shows a single "Most recent test" line link to Today. Full history list intentionally deferred (cut per Phase D scope decision).
-- **Tests landing — recent history surface (ADR 0020).** Replaces the single "Most recent test" breadcrumb on `_authed.tests.index.tsx` with: (a) a 30-day activity sparkline (inline SVG, no chart-lib dep) showing tests-per-day with hover tooltips, and (b) a list of the last 15 completed tests as Card rows — type badge, range summary, relative date, rating badge — each linking to `/tests/$testId`. Queries hit the existing `test_student_ended_idx` partial index. A read-only test-detail view is a follow-up (rows currently land on `LiveTestRoute`'s "already completed" alert).
+- **Tests landing — recent history surface (ADR 0021).** Replaces the single "Most recent test" breadcrumb on `_authed.tests.index.tsx` with: (a) a 30-day activity sparkline (inline SVG, no chart-lib dep) showing tests-per-day with hover tooltips, and (b) a list of the last 15 completed tests as Card rows — type badge, range summary, relative date, rating badge — each linking to `/tests/$testId/recap`. Queries hit the existing `test_student_ended_idx` partial index.
 - **Live-test route file** `apps/web/src/routes/_authed.tests.$testId.tsx`.
 - **Overlay computation** (`apps/web/src/mushaf/getOverlayMarkers.ts`, ADR 0019). `getOverlayMarkers(pageNumber, stats, mode, quranIndex)` collapses `error_location_stats` rows to one marker per visual location; merges by max-intensity for color and total occurrence_count for the badge. `getErrorsAtLocation` helper for the future error-detail modal. Three modes wired: `simple` (red marker), `heatmap` (5-band ramp), `colored` (per error type).
 - **MushafPage marker rendering** — `overlays` prop now accepts `ErrorLocationStatsRow[]`; words with markers get a tinted background + bottom underline (via CSS custom property `--marker-color`) and an optional count badge (`5+` collapse rule per ADR 0011).
@@ -41,7 +66,7 @@
 - **ADR 0017** — Post-test pipeline as one fat SQL function.
 - **ADR 0018** — Streaming error inserts (per-tap POST).
 - **ADR 0019** — Overlay computation client-side from cached `error_location_stats`.
-- **ADR 0020** — Tests landing shows recent history (sparkline + last 15 list).
+- **ADR 0021** — Tests landing shows recent history (sparkline + last 15 list).
 
 ### Fixed — Phase D foundation
 - **Mushaf rendering: words now read right-to-left (ADR 0016).** `apps/web/src/mushaf/MushafPage.module.css` removed `flex-direction: row-reverse` from `.line` — combined with `.mushaf-page { direction: rtl }` it was a BiDi double-reversal that rendered LTR. Filled lines now justify edge-to-edge via inline `justify-content: space-between` (set per line by `LineRow`); centered lines (surah_name, basmallah, `is_centered`) keep `justify-content: center`. Added `unicode-bidi: isolate` + `letter-spacing: 0` to `.mushaf-word` so the renderer behaves correctly when embedded in an LTR pane (the new live-test layout). `MushafPage.tsx` preloads the current page's QPC V2 font via an injected `<link rel="preload">` to cut the FOIT/FOUT swap flash.

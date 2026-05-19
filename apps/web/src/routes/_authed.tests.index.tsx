@@ -109,13 +109,13 @@ function TestsPage() {
             <Group gap={6}>
               <Sparkles size={16} color="var(--mantine-color-honey-7)" />
               <Text fw={700}>
-                {openInProgress ? 'You have a test in progress' : 'Begin a guest-witnessed test'}
+                {openInProgress ? 'You have a test in progress' : 'Begin a self-test'}
               </Text>
             </Group>
             <Text size="sm" c="dimmed">
               {openInProgress
                 ? 'Resume your live test to keep logging errors, then end with a rating.'
-                : 'Find a witness — a teacher, parent, or anyone who hears Quran — and run a live test. Self-administered tests aren’t tests (ADR 0004).'}
+                : 'Run a test from your device with someone listening — a teacher, parent, sibling, or friend can act as your witness.'}
             </Text>
             <Group>
               {openInProgress ? (
@@ -170,7 +170,7 @@ function TestsPage() {
                 <TestHistoryRow
                   key={t.id}
                   test={t}
-                  onClick={() => navigate({ to: '/tests/$testId', params: { testId: t.id } })}
+                  onClick={() => navigate({ to: '/tests/$testId/recap', params: { testId: t.id } })}
                 />
               ))}
             </Stack>

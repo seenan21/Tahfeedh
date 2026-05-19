@@ -699,9 +699,11 @@ When a user taps an error overlay:
 
 1. **Location** — surah, ayah, word(s) involved (rendered with QPC Hafs font)
 2. **Type + severity**
-3. **Occurrence history** — list of dates, severities, teacher notes per occurrence
+3. **Occurrence history** — every individual `error_log` row at the location, grouped visually by signature (see §9.7 for the layout). Not a summary — each occurrence is listed with its date, severity, and any note.
 4. **Trend** — ↓ improving / ↑ recurring / ✓ cleared
 5. **Quick action** — "Mark as resolved" (manual override, sets `cleared = true`)
+
+**Ghost errors** (ADR 0023). Occurrences whose `error_location_stats` row has `cleared = true` are hidden by default and represented by a single muted line: `+ N ghost errors (cleared) [show]`. Tapping `[show]` reveals them inline, visually de-emphasized. Ghosts never contribute to the mushaf marker badge — they only exist inside the modal, on demand. If a cleared signature recurs later, `cleared` flips back to false in the post-test pipeline (§13.4) and those rows un-ghost automatically on the next open.
 
 ### 9.7 Overlay rendering & overlap handling
 
@@ -1527,7 +1529,7 @@ Dependency-ordered. AI-paced. Tick them off as you go.
 
 ### M7 — Timeline + Polish
 - [ ] Timeline/Calendar view: past tests, errors, milestones
-- [ ] Error detail modal with full occurrence history, trend, mark-resolved
+- [ ] Error detail modal with full occurrence history, trend, mark-resolved, ghost-error reveal toggle (ADR 0023)
 - [ ] Settings → Edit Memorization screen (reopens onboarding Step 2 with current state)
 - [ ] Empty states with personality
 - [ ] Loading skeletons everywhere
@@ -1616,6 +1618,9 @@ When a user uses Settings → Edit Memorization to mark *additional* memorizatio
 Word markers need to be visually distinct enough to be tappable on mobile (44×44px minimum tap target per accessibility guidelines) without crowding the mushaf text. Initial implementation: a 6px dot positioned ~4px beneath the word's baseline, with an invisible 44×44px tap-target wrapper. Badge text uses 9–10px font at high contrast. Test legibility at 22px mushaf font on mobile during M2 — if dots interfere with reading, switch to a subtle underline style.
 
 For verse-end markers: position adjacent to the ۝ ayah number marker. Keep small enough that an unaffected verse and an error-marked verse look near-identical at a glance — the overlay should augment the mushaf, not replace its visual identity.
+
+### 20.15 Error detail modal sort key
+Within each signature group (§9.6, ADR 0023), occurrences need an order. Two candidates: **severity desc, then recency desc** (most-actionable first) or **recency desc** (most-recent first). They disagree when an old `major` competes with a fresh `minor`. Pick during M7 once we have real seed data to look at.
 
 When multiple errors aggregate at one location, the marker's intensity = max of individual intensities (single hottest error drives the color).
 

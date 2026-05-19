@@ -115,6 +115,14 @@ export function LiveTestRoute() {
   // the corresponding word on the mushaf as feedback to the witness.
   const liveOverlay = useMemo(() => loggedErrorsToStats(session.errors), [session.errors]);
 
+  // Redirect completed/abandoned tests to the read-only recap route.
+  // Must live in an effect — calling navigate during render is a side effect.
+  useEffect(() => {
+    if (test && test.status !== 'in_progress' && !summaryOpen) {
+      navigate({ to: '/tests/$testId/recap', params: { testId }, replace: true });
+    }
+  }, [test, summaryOpen, navigate, testId]);
+
   if (loadError) {
     return (
       <Container py="md">
@@ -147,16 +155,12 @@ export function LiveTestRoute() {
     );
   }
   if (test.status !== 'in_progress' && !summaryOpen) {
+    // The redirect-to-recap effect above is running; render a loader spinner
+    // while the navigation lands instead of flashing a stale alert.
     return (
       <Container py="md">
-        <Stack gap="sm">
-          <Text c="parchment.0" fw={700} fz="lg">
-            Live test
-          </Text>
-          <Alert>This test is already {test.status}.</Alert>
-          <Group>
-            <Button onClick={() => navigate({ to: '/today' })}>Back to Today</Button>
-          </Group>
+        <Stack gap="sm" align="center" mih={300} justify="center">
+          <Loader color="parchment.0" />
         </Stack>
       </Container>
     );

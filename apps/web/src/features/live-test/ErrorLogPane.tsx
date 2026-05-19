@@ -1,8 +1,7 @@
 import { useState } from 'react';
-import { ActionIcon, Badge, Button, Group, Paper, ScrollArea, Select, Stack, Text, Textarea, Tooltip } from '@mantine/core';
-import { Trash2 } from 'lucide-react';
+import { Badge, Button, Group, Paper, Select, Stack, Text, Textarea } from '@mantine/core';
 import type { TestRating, TestType } from '@tahfeedh/shared';
-import { chapter } from '../../data/quran-data';
+import { LoggedErrorsList } from './LoggedErrorsList';
 import type { LoggedError } from './useTestSession';
 
 const RATING_OPTIONS: Record<TestType, Array<{ value: TestRating; label: string }>> = {
@@ -55,54 +54,9 @@ export function ErrorLogPane({ testType, guestTesterName, errors, rangeLabel, on
         </Group>
       </Stack>
 
-      <ScrollArea style={{ flex: 1, minHeight: 0 }} mb="md">
-        {errors.length === 0 ? (
-          <Text size="xs" c="dimmed" fs="italic">
-            Tap any word on the mushaf to log an error.
-          </Text>
-        ) : (
-          <Stack gap={6}>
-            {errors.map((e) => {
-              const ch = chapter(e.surah);
-              return (
-                <Paper key={e.id} p="xs" radius="sm" withBorder>
-                  <Group justify="space-between" gap={4} wrap="nowrap" align="flex-start">
-                    <Stack gap={0} style={{ minWidth: 0 }}>
-                      <Group gap={6}>
-                        <Badge size="xs" variant="filled" color="brick">
-                          {e.error_type}
-                        </Badge>
-                        <Badge size="xs" variant="light">
-                          {e.severity}
-                        </Badge>
-                      </Group>
-                      <Text size="xs" fw={600} mt={2}>
-                        {ch?.name_simple} {e.surah}:{e.ayah}
-                        {e.word_position ? ` · word ${e.word_position}` : ''}
-                      </Text>
-                      {e.error_type === 'wrong_verse' && e.related_surah && e.related_ayah && (
-                        <Text size="xs" c="dimmed">
-                          intended: {chapter(e.related_surah)?.name_simple} {e.related_surah}:{e.related_ayah}
-                        </Text>
-                      )}
-                      {e.teacher_note && (
-                        <Text size="xs" c="dimmed" lineClamp={2}>
-                          {e.teacher_note}
-                        </Text>
-                      )}
-                    </Stack>
-                    <Tooltip label="Delete error (not implemented)" disabled>
-                      <ActionIcon variant="subtle" size="sm" disabled>
-                        <Trash2 size={12} />
-                      </ActionIcon>
-                    </Tooltip>
-                  </Group>
-                </Paper>
-              );
-            })}
-          </Stack>
-        )}
-      </ScrollArea>
+      <div style={{ flex: 1, minHeight: 0, marginBottom: 'var(--mantine-spacing-md)' }}>
+        <LoggedErrorsList errors={errors} showTrashAffordance />
+      </div>
 
       <Stack gap="xs">
         <Select

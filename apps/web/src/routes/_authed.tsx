@@ -6,7 +6,6 @@ import {
   Button,
   Group,
   Menu,
-  Paper,
   Stack,
   Text,
   UnstyledButton,
@@ -80,6 +79,15 @@ export const Route = createFileRoute('/_authed')({
       if (inProgress) {
         const expected = `/tests/${inProgress.id}`;
         if (location.pathname !== expected) {
+          // Signal the banner to pulse — the student just got bounced back, so
+          // we want the pill in the header to grab their attention. The event
+          // fires on `window` so the listener in AuthedLayout (sibling tree)
+          // can react regardless of which route was attempted.
+          if (typeof window !== 'undefined') {
+            queueMicrotask(() => {
+              window.dispatchEvent(new CustomEvent('test-lock-redirect'));
+            });
+          }
           throw redirect({ to: '/tests/$testId', params: { testId: inProgress.id } });
         }
       }
@@ -108,6 +116,23 @@ function AuthedLayout() {
   });
 
   const elapsed = useElapsed(inProgressTest?.started_at);
+
+  // Flash the banner when the route guard bounces the student back to the
+  // live test. One-shot animation, cleared after ~1.4s. Listener lives here
+  // since AuthedLayout outlives every authed route transition.
+  const [bannerFlashing, setBannerFlashing] = useState(false);
+  useEffect(() => {
+    const handler = () => {
+      setBannerFlashing(false);
+      // Force a reflow then set true so consecutive bounces retrigger the keyframes.
+      requestAnimationFrame(() => {
+        setBannerFlashing(true);
+        window.setTimeout(() => setBannerFlashing(false), 1400);
+      });
+    };
+    window.addEventListener('test-lock-redirect', handler);
+    return () => window.removeEventListener('test-lock-redirect', handler);
+  }, []);
 
   async function handleSignOut() {
     // Auto-abandon any in-progress test before signing out (ADR follow-up to
@@ -164,44 +189,53 @@ function AuthedLayout() {
           </Group>
 
           {inProgressTest && (
-            <Paper
-              px={14}
-              py={6}
-              radius="xl"
+            <div
+              data-flashing={bannerFlashing ? 'true' : 'false'}
               style={{
                 position: 'absolute',
                 left: '50%',
                 top: '50%',
                 transform: 'translate(-50%, -50%)',
                 background:
-                  'linear-gradient(90deg, var(--mantine-color-brick-7), var(--mantine-color-brick-5))',
-                color: 'var(--mantine-color-parchment-0)',
+                  'linear-gradient(90deg, #7f1d1d 0%, #b91c1c 100%)',
+                color: '#FFFFC1',
+                padding: '6px 16px',
+                borderRadius: 999,
                 display: 'flex',
                 alignItems: 'center',
                 gap: 10,
-                boxShadow: '0 2px 10px rgba(127, 29, 29, 0.4)',
+                boxShadow: '0 2px 10px rgba(127, 29, 29, 0.45)',
                 pointerEvents: 'none',
                 zIndex: 1,
+                fontFamily:
+                  '"Montserrat", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+                fontSize: 12,
+                fontWeight: 700,
+                lineHeight: 1.2,
+                letterSpacing: 0.4,
+                whiteSpace: 'nowrap',
+                animation: bannerFlashing ? 'tahfeedhTestLockPulse 1.4s ease-out' : undefined,
+                outline: bannerFlashing ? '2px solid rgba(248, 113, 113, 0.95)' : '2px solid transparent',
+                outlineOffset: 2,
+                transition: 'outline-color 220ms ease',
               }}
             >
-              <AlertCircle size={14} strokeWidth={2.4} />
-              <Text size="xs" fw={700} c="parchment.0" style={{ letterSpacing: 0.4 }}>
+              <AlertCircle size={14} strokeWidth={2.4} color="#FFFFC1" />
+              <span style={{ color: '#FFFFC1' }}>
                 Self-test in session
                 {inProgressTest.guest_tester_name ? ` · ${inProgressTest.guest_tester_name}` : ''}
-              </Text>
-              <Text
-                size="xs"
-                fw={700}
-                c="parchment.0"
+              </span>
+              <span
                 style={{
+                  color: '#FFFFC1',
                   fontVariantNumeric: 'tabular-nums',
-                  paddingInlineStart: 8,
-                  borderInlineStart: '1px solid rgba(255,255,255,0.35)',
+                  paddingInlineStart: 10,
+                  borderInlineStart: '1px solid rgba(255, 255, 193, 0.45)',
                 }}
               >
                 {elapsed}
-              </Text>
-            </Paper>
+              </span>
+            </div>
           )}
 
           <Menu position="bottom-end" withArrow shadow="lg" width={240} offset={8}>

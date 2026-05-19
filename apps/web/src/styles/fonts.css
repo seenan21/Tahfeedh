@@ -55,3 +55,37 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
+
+/* =========================================================================
+ * Global animations
+ * ========================================================================= */
+
+/* Self-test lock pulse — used by the "Self-test in session" banner in the
+   AppShell header when the route guard bounces the student back to the
+   live test. Triggered by the `test-lock-redirect` window event. */
+@keyframes tahfeedhTestLockPulse {
+  0% {
+    box-shadow:
+      0 2px 10px rgba(127, 29, 29, 0.45),
+      0 0 0 0 rgba(248, 113, 113, 0.0);
+    transform: translate(-50%, -50%) scale(1);
+  }
+  20% {
+    box-shadow:
+      0 0 0 4px rgba(248, 113, 113, 0.65),
+      0 0 24px 10px rgba(220, 38, 38, 0.55);
+    transform: translate(-50%, -50%) scale(1.04);
+  }
+  60% {
+    box-shadow:
+      0 0 0 8px rgba(248, 113, 113, 0.0),
+      0 0 36px 14px rgba(220, 38, 38, 0.3);
+    transform: translate(-50%, -50%) scale(1.02);
+  }
+  100% {
+    box-shadow:
+      0 2px 10px rgba(127, 29, 29, 0.45),
+      0 0 0 0 rgba(248, 113, 113, 0.0);
+    transform: translate(-50%, -50%) scale(1);
+  }
+}

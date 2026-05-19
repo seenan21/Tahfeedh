@@ -18,6 +18,10 @@
   font-size: 28px;
   line-height: 2;
   cursor: pointer;
+  /* Isolate from surrounding BiDi context so a word inside an LTR pane
+     (e.g. the live-test two-pane layout) still renders correctly. */
+  unicode-bidi: isolate;
+  letter-spacing: 0;
 }
 
 @media (max-width: 480px) {

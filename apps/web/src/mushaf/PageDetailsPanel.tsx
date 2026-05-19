@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { Badge, Divider, Group, Skeleton, Stack, Text } from '@mantine/core';
 import { Activity, ClipboardList, History } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
-import type { MemorizationStatus } from '@tahfeedh/shared';
+import type { ErrorType, MemorizationStatus, TestRating, TestType } from '@tahfeedh/shared';
 import { supabase } from '../lib/supabase';
 import { chapter, quranIndex } from '../data/quran-data';
 import { toArabicIndic } from '../lib/numerals';
@@ -76,6 +76,95 @@ async function fetchPageRow(
     .maybeSingle();
   if (error) throw error;
   return data as MemorizationPageRow | null;
+}
+
+interface ErrorSummary {
+  total: number;
+  byType: Array<{ error_type: ErrorType; count: number }>;
+}
+
+interface RecentTestRow {
+  id: string;
+  test_type: TestType;
+  rating: TestRating | null;
+  ended_at: string | null;
+}
+
+async function fetchErrorSummary(
+  studentId: string,
+  pageNumber: number,
+): Promise<ErrorSummary> {
+  const segments = pageSegments(pageNumber);
+  if (segments.length === 0) return { total: 0, byType: [] };
+
+  const { data, error } = await supabase
+    .from('error_location_stats')
+    .select('surah_number, ayah_number, error_type, occurrence_count, cleared')
+    .eq('student_id', studentId)
+    .eq('cleared', false)
+    .in(
+      'surah_number',
+      segments.map((s) => s.surah),
+    );
+  if (error) throw error;
+
+  const onPage = (data ?? []).filter((r) => {
+    const seg = segments.find((s) => s.surah === r.surah_number);
+    if (!seg) return false;
+    return r.ayah_number >= seg.minAyah && r.ayah_number <= seg.maxAyah;
+  });
+
+  let total = 0;
+  const byTypeMap = new Map<ErrorType, number>();
+  for (const r of onPage) {
+    total += r.occurrence_count;
+    byTypeMap.set(
+      r.error_type as ErrorType,
+      (byTypeMap.get(r.error_type as ErrorType) ?? 0) + r.occurrence_count,
+    );
+  }
+  const byType = Array.from(byTypeMap.entries())
+    .map(([error_type, count]) => ({ error_type, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 3);
+
+  return { total, byType };
+}
+
+async function fetchRecentTestsOnPage(
+  studentId: string,
+  pageNumber: number,
+): Promise<RecentTestRow[]> {
+  // Cheap filter: any completed test with a 'page' range containing this page,
+  // or any range type that almost certainly overlaps. For the demo we keep it
+  // simple — pull recent completed tests and let the caller see them.
+  const { data, error } = await supabase
+    .from('test')
+    .select('id, test_type, rating, ended_at, ranges, student_id, status')
+    .eq('student_id', studentId)
+    .eq('status', 'completed')
+    .order('ended_at', { ascending: false })
+    .limit(20);
+  if (error) throw error;
+
+  const hits: RecentTestRow[] = [];
+  for (const row of data ?? []) {
+    const ranges = (row.ranges ?? []) as Array<{ type: string; start?: number; end?: number }>;
+    const overlaps = ranges.some((r) => {
+      if (r.type !== 'page') return false;
+      return (r.start ?? 0) <= pageNumber && (r.end ?? 0) >= pageNumber;
+    });
+    if (overlaps) {
+      hits.push({
+        id: row.id,
+        test_type: row.test_type as TestType,
+        rating: row.rating as TestRating | null,
+        ended_at: row.ended_at,
+      });
+    }
+    if (hits.length >= 3) break;
+  }
+  return hits;
 }
 
 async function fetchReviewSummary(
@@ -160,6 +249,18 @@ export function PageDetailsPanel({ studentId, pageNumber, pageStatus }: PageDeta
   const { data: review, isLoading: reviewLoading } = useQuery({
     queryKey: ['page_review_summary', studentId, pageNumber],
     queryFn: () => fetchReviewSummary(studentId, pageNumber),
+    staleTime: 30_000,
+  });
+
+  const { data: errorSummary, isLoading: errorsLoading } = useQuery({
+    queryKey: ['page_error_summary', studentId, pageNumber],
+    queryFn: () => fetchErrorSummary(studentId, pageNumber),
+    staleTime: 30_000,
+  });
+
+  const { data: recentTests, isLoading: testsLoading } = useQuery({
+    queryKey: ['page_recent_tests', studentId, pageNumber],
+    queryFn: () => fetchRecentTestsOnPage(studentId, pageNumber),
     staleTime: 30_000,
   });
 
@@ -256,7 +357,7 @@ export function PageDetailsPanel({ studentId, pageNumber, pageStatus }: PageDeta
 
       <Divider />
 
-      {/* Error summary — Phase D placeholder */}
+      {/* Error summary */}
       <Stack gap={6}>
         <Group gap={6} align="center">
           <ClipboardList size={14} color="var(--mantine-color-mihrab-9)" strokeWidth={2} />
@@ -264,17 +365,31 @@ export function PageDetailsPanel({ studentId, pageNumber, pageStatus }: PageDeta
             Errors logged
           </Text>
         </Group>
-        <Text size="sm" c="dimmed">
-          No errors yet.
-        </Text>
-        <Text size="xs" c="dimmed">
-          The live test flow (Phase D) populates this list as you log mistakes.
-        </Text>
+        {errorsLoading ? (
+          <Skeleton height={36} radius="sm" />
+        ) : !errorSummary || errorSummary.total === 0 ? (
+          <Text size="sm" c="dimmed">
+            No errors yet.
+          </Text>
+        ) : (
+          <Stack gap={4}>
+            <Text size="sm" fw={500}>
+              {errorSummary.total} occurrence{errorSummary.total === 1 ? '' : 's'} across {errorSummary.byType.length} pattern{errorSummary.byType.length === 1 ? '' : 's'}
+            </Text>
+            <Group gap={4}>
+              {errorSummary.byType.map((b) => (
+                <Badge key={b.error_type} variant="light" color="brick" size="sm">
+                  {b.error_type.replace('_', ' ')} · {b.count}
+                </Badge>
+              ))}
+            </Group>
+          </Stack>
+        )}
       </Stack>
 
       <Divider />
 
-      {/* Recent tests — Phase D placeholder */}
+      {/* Recent tests on this page */}
       <Stack gap={6}>
         <Group gap={6} align="center">
           <History size={14} color="var(--mantine-color-mihrab-9)" strokeWidth={2} />
@@ -282,12 +397,29 @@ export function PageDetailsPanel({ studentId, pageNumber, pageStatus }: PageDeta
             Recent tests on this page
           </Text>
         </Group>
-        <Text size="sm" c="dimmed">
-          No tests recorded yet.
-        </Text>
-        <Text size="xs" c="dimmed">
-          Tests are the only way pages move through the queues. Begin one whenever a witness is ready.
-        </Text>
+        {testsLoading ? (
+          <Skeleton height={36} radius="sm" />
+        ) : !recentTests || recentTests.length === 0 ? (
+          <Text size="sm" c="dimmed">
+            No tests on this page yet.
+          </Text>
+        ) : (
+          <Stack gap={3}>
+            {recentTests.map((t) => (
+              <Group key={t.id} justify="space-between">
+                <Text size="xs">
+                  {t.test_type === 'newly_memorized' ? 'New lesson' : 'Revision'} ·{' '}
+                  {t.ended_at ? formatRelative(t.ended_at) : '—'}
+                </Text>
+                {t.rating && (
+                  <Badge size="xs" variant="light">
+                    {t.rating}
+                  </Badge>
+                )}
+              </Group>
+            ))}
+          </Stack>
+        )}
       </Stack>
     </Stack>
   );

@@ -2,6 +2,32 @@
 
 ## [Unreleased]
 
+### Added — Phase D (M4) — Live tests + error logging E2E
+- **Migration `0016_post_test_pipeline.sql` (applied).** `submit_test(uuid, jsonb)` SECURITY DEFINER function — transactionally closes a test, touches `ayah_review_state.last_reviewed_at` for every covered ayah, upserts `error_location_stats` from the streamed `error_log` rows, decays untouched stats (clears at counter ≥ 3 per DESIGN.md §12 / §13.4), promotes `memorization_page.status` from `in_progress → memorized` on `strong_pass` for `newly_memorized` tests, and returns `{ testId, new[], recurring[], cleared[] }`. Granted to `service_role` only (ADR 0017). M5 work (mastery promotion, fail-downgrade, recent-revision stage machine) is documented inline with `-- TODO M5` markers.
+- **Express `/api/tests` router** (`apps/server/src/routes/tests.ts`) with three endpoints — `POST /create`, `POST /:id/error` (streaming per-tap inserts, ADR 0018), `POST /:id/finish` (resolves ranges via `apps/server/src/pipelines/post-test/resolve.ts`, calls `submit_test` RPC). All three verify the Supabase bearer + ownership; the create endpoint surfaces the unique-partial-index conflict as 409.
+- **Pure range resolver** (`apps/server/src/pipelines/post-test/resolve.ts`) — `resolveTestRanges(ranges, quranIndex): { coveredAyahs, coveredPages }`. Handles `page`/`surah`/`ayah`/`juz`; throws on `hizb`/`rub` (not in static index — out of MVP scope). Reuses `expandPageAyahs` from `apps/server/src/memorization/pageAyahs.ts`.
+- **Shared types + Zod schemas:** `TestMode`, `PostTestSummary`, `PostTestSummaryRow`, `ErrorLocationStatsRow` (types.ts); `testCreateSchema`, `logErrorSchema`, `finishTestSchema` with refinements (wrong_verse requires `related_surah`/`related_ayah`; guest_teacher requires `guest_tester_name`; `word_position_end ≥ word_position`).
+- **Live-test feature folder** (`apps/web/src/features/live-test/`):
+  - `LiveTestRoute.tsx` — two-pane layout (MushafPage left, ErrorLogPane right), prev/next page toolbar, modal orchestration. Reached via `/_authed/tests/$testId`.
+  - `TestCreationModal.tsx` — type + page range + witness name. Trust nudge per ADR 0004.
+  - `ErrorLogModal.tsx` — 8 error-type chips (DESIGN.md §9.2), severity, optional note, **inline QF Search field when `error_type === 'wrong_verse'`** (debounced query to `/api/qf/search`, radio-picks store `related_surah`+`related_ayah`).
+  - `ErrorLogPane.tsx` — streaming error list with badges, rating picker (different options per test type), End-Test button.
+  - `PostTestSummaryModal.tsx` — three sections (NEW / RECURRING / CLEARED) backed by the `submit_test` summary payload.
+  - `useTestSession.ts` — hook holding `errors[]` + `logError()` + `finishTest()`.
+  - `useTestPages.ts` — derives the candidate page list from a test's ranges (mirrors `resolveTestRanges` for the client).
+- **Tests sidebar route updated** (`apps/web/src/routes/_authed.tests.tsx`): Begin-Test CTA + trust nudge; resumes an in-progress test if one exists; shows a single "Most recent test" line link to Today. Full history list intentionally deferred (cut per Phase D scope decision).
+- **Live-test route file** `apps/web/src/routes/_authed.tests.$testId.tsx`.
+- **Overlay computation** (`apps/web/src/mushaf/getOverlayMarkers.ts`, ADR 0019). `getOverlayMarkers(pageNumber, stats, mode, quranIndex)` collapses `error_location_stats` rows to one marker per visual location; merges by max-intensity for color and total occurrence_count for the badge. `getErrorsAtLocation` helper for the future error-detail modal. Three modes wired: `simple` (red marker), `heatmap` (5-band ramp), `colored` (per error type).
+- **MushafPage marker rendering** — `overlays` prop now accepts `ErrorLocationStatsRow[]`; words with markers get a tinted background + bottom underline (via CSS custom property `--marker-color`) and an optional count badge (`5+` collapse rule per ADR 0011).
+- **PageDetailsPanel populated with real Phase D data**: errors-logged section reads from `error_location_stats` filtered to the page's ayahs (top-3 patterns by occurrence); recent-tests section reads from `test` filtered to ranges that overlap the page.
+- **ADR 0016** — Mushaf line layout: `direction: rtl` + justified flex (no `row-reverse`).
+- **ADR 0017** — Post-test pipeline as one fat SQL function.
+- **ADR 0018** — Streaming error inserts (per-tap POST).
+- **ADR 0019** — Overlay computation client-side from cached `error_location_stats`.
+
+### Fixed — Phase D foundation
+- **Mushaf rendering: words now read right-to-left (ADR 0016).** `apps/web/src/mushaf/MushafPage.module.css` removed `flex-direction: row-reverse` from `.line` — combined with `.mushaf-page { direction: rtl }` it was a BiDi double-reversal that rendered LTR. Filled lines now justify edge-to-edge via inline `justify-content: space-between` (set per line by `LineRow`); centered lines (surah_name, basmallah, `is_centered`) keep `justify-content: center`. Added `unicode-bidi: isolate` + `letter-spacing: 0` to `.mushaf-word` so the renderer behaves correctly when embedded in an LTR pane (the new live-test layout). `MushafPage.tsx` preloads the current page's QPC V2 font via an injected `<link rel="preload">` to cut the FOIT/FOUT swap flash.
+
 ### Changed
 - **My Mushaf restructured (ADR 0015).** The route is now reader-first: the actual mushaf page renders on the main canvas (no Drawer), with a sticky read-only `PageDetailsPanel` to the right showing status + memorized timestamp + review freshness (from `ayah_review_state`) + Phase-D placeholders for error summary and recent tests. A SegmentedControl toggles to a `Tracker` view; the new `MushafGrid` is a collapsible accordion with one juz per row (each shows a stacked progress bar + counts; expanding reveals the page cells). Reader toolbar: prev / next / page indicator / "Jump to" input. Last-selected page persists in `localStorage`; initial page comes from cached `next_new_lesson` or page 1.
 - **Removed manual memorization marking** — `MarkPageModal`, `POST /api/memorization/mark`, the `/api/memorization` mount, and the `markMemorizationSchema` / `MarkMemorizationInput` / `MemorizationMarkStatus` types are all gone. Per ADR 0015, `memorization_page.status` changes only via the post-test pipeline (Phase D) or onboarding's `commit_onboarding` bulk-write. The SQL function `mark_memorization(uuid, jsonb)` stays in the DB (reserved for the post-M8 Edit Memorization Settings flow — see `notes-for-future.md`).

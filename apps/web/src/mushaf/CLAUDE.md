@@ -1,6 +1,6 @@
 # apps/web/src/mushaf/
 
-Mushaf renderer + grid + marking modal. All components for "the mushaf" surface (CLAUDE.md shorthand) live here. Imported from `_authed.mushaf.tsx` and (in Phase D) from the live-test feature.
+Mushaf renderer + juz tracker grid + read-only page-details side panel. All components for "the mushaf" surface (CLAUDE.md shorthand) live here. Imported from `_authed.mushaf.tsx` and (in Phase D) from the live-test feature. No marking UI — status is test-driven per ADR 0015.
 
 ## Index
 

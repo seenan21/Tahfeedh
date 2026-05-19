@@ -28,6 +28,10 @@ export type ErrorType =
 
 export type ErrorSeverity = 'minor' | 'moderate' | 'major';
 
+// Test mode (ADR 0004). enrolled_teacher = teacher_id is set; guest_teacher =
+// teacher_id is null, optional guest_tester_name captured for the record.
+export type TestMode = 'enrolled_teacher' | 'guest_teacher';
+
 export type EnrollmentStatus = 'active' | 'paused' | 'completed';
 
 export type GoalStatus = 'active' | 'completed' | 'abandoned';
@@ -121,6 +125,46 @@ export interface QuranIndex {
   surahs: Record<string, SurahIndexEntry>;
   juzs: Record<string, JuzIndexEntry>;
   total_pages: number;
+}
+
+// Phase D — live tests + errors (DESIGN.md §8, §9, §13, §14.5, §14.6).
+// Server endpoints: POST /api/tests/create, POST /api/tests/:id/error,
+// POST /api/tests/:id/finish (calls submit_test SQL fn from migration 0016).
+// Request input types are inferred from Zod in schema.ts (TestCreateInput,
+// LogErrorInput, FinishTestInput); response types live here.
+
+export interface PostTestSummaryRow {
+  signature: string;
+  surah: number;
+  ayah: number;
+  wordPosition: number | null;
+  errorType: ErrorType;
+  occurrenceCount: number;
+}
+
+export interface PostTestSummary {
+  testId: string;
+  new: PostTestSummaryRow[];
+  recurring: PostTestSummaryRow[];
+  cleared: PostTestSummaryRow[];
+}
+
+// Read shape for client overlay computation (ADR 0011). Mirrors the
+// error_location_stats table; populate via direct Supabase select under RLS.
+export interface ErrorLocationStatsRow {
+  id: string;
+  student_id: string;
+  signature: string;
+  surah_number: number;
+  ayah_number: number;
+  word_position: number | null;
+  error_type: ErrorType;
+  occurrence_count: number;
+  first_seen_at: string;
+  last_seen_at: string;
+  tests_since_last_occurrence: number;
+  cleared: boolean;
+  updated_at: string;
 }
 
 // QF API response shapes (minimal — expand as needed)

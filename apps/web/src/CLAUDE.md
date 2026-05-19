@@ -9,7 +9,8 @@
 | `components/` | Cross-route reusable components (sidebar, hero, empty state, silk) | Reaching for a shared UI primitive |
 | `onboarding/` | The 3-step onboarding flow (state reducer + step components) | Touching onboarding UX |
 | `today/` | Today-view-specific components (streak, juz grid, slot card, new-lesson card) | Touching the Today layout |
-| `mushaf/` | Mushaf renderer, 604-page grid, marking modal | Touching the mushaf surface (Phase C) |
+| `features/` | Feature folders (currently `live-test/`) — self-contained user-facing flows | Touching a multi-component feature surface |
+| `mushaf/` | Mushaf renderer, collapsible juz tracker grid, read-only page-details side panel | Touching the mushaf surface |
 | `lib/` | Browser-side utilities (Supabase client, auth helpers, numerals) | Adding a low-level utility |
 | `api/` | Backend API client (`apiFetch` with Supabase bearer-token injection) | Calling `apps/server` from the web |
 | `data/` | Static Quran data + accessor helpers (`metadata.json`, `quran-index.json`, `pages/`) | Reading mushaf data or the derived index |

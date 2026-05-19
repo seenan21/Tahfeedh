@@ -27,13 +27,19 @@
   margin-bottom: 18px;
 }
 
+/* RTL flow comes from .mushaf-page (direction: rtl in fonts.css). With direction: rtl
+   on the parent, DOM-order flex children naturally lay out right-to-left — no
+   flex-direction: row-reverse needed (that would reverse twice and render LTR).
+   justify-content is set inline by MushafPage.tsx: 'space-between' for filled
+   lines (Madani edge-to-edge) and 'center' for surah_name / basmallah / short
+   final-ayah lines. */
 .line {
   display: flex;
-  flex-direction: row-reverse;
   align-items: center;
   gap: 0.18em;
   padding: 4px 6px;
   min-height: 2.2em;
+  letter-spacing: 0;
 }
 
 .lineCompact {
@@ -60,4 +66,37 @@
   padding: 6px 18px;
   border-radius: 999px;
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.4);
+}
+
+/* Overlay marker — ADR 0011. Each word with a merged marker gets a tinted
+   underline + soft halo so the marker reads in heatmap and colored modes. The
+   --marker-color custom property is set inline by MushafPage's WordSpan. */
+.wordMarked {
+  position: relative;
+  background: color-mix(in srgb, var(--marker-color) 12%, transparent);
+  box-shadow: inset 0 -3px 0 0 var(--marker-color, transparent);
+  border-radius: 4px;
+  transition: background 120ms ease;
+}
+
+.wordMarked:hover {
+  background: color-mix(in srgb, var(--marker-color) 22%, transparent);
+}
+
+.wordMarkerBadge {
+  display: inline-block;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 3px;
+  margin-inline-start: 2px;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 14px;
+  text-align: center;
+  color: white;
+  background: var(--marker-color);
+  border-radius: 7px;
+  vertical-align: super;
+  unicode-bidi: isolate;
 }

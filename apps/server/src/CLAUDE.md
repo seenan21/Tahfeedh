@@ -10,7 +10,7 @@
 | `routes/` | Express routers mounted under `/api/*` | Adding a new endpoint |
 | `auth/` | Helpers that consume the caller's Supabase bearer token | Verifying who's calling an endpoint |
 | `onboarding/` | Pure expansion logic — selections → row-level payload for the SQL function | Touching how onboarding selections become rows (ADR 0008) |
-| `memorization/` | Pure expansion logic — pageNumber → ayahs-on-page, isAyahOnPage validator | Touching how the marking endpoint expands pages (ADR 0011) |
+| `memorization/` | Pure expansion logic — pageNumber → ayahs-on-page, isAyahOnPage validator. Reserved for the Phase D post-test pipeline and the future Edit-Memorization flow (ADR 0015) | Touching page → ayah expansion or wiring the post-test pipeline |
 | `qf/` | Quran Foundation API client (token cache + Content API fetchers) | Calling QF endpoints from the server |
 | `data/` | Generated `quran-index.json` copy for server-side range expansion (ADR 0007) | Don't hand-edit. Regenerate via `npm run build:quran-index` |
 | `algorithm/` | **Stub** — session plan / queue logic lands in M5 | Building the algorithm in M5 |

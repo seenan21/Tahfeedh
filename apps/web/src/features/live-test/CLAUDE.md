@@ -1,6 +1,6 @@
 # apps/web/src/features/live-test/
 
-The Phase D witnessed-test flow (DESIGN.md §14.5 / §14.6). Reached from `/_authed/tests/$testId`. All errors stream to the server per tap (ADR 0018); the finish endpoint reads them from the DB. Overlays are NOT shown during the live test (visual distraction during recitation) — they appear on My Mushaf after the test completes.
+The Phase D witnessed-test flow (DESIGN.md §14.5 / §14.6). Reached from `/_authed/tests/$testId`. All errors stream to the server per tap (ADR 0018); the finish endpoint reads them from the DB. The mushaf overlay is **always on during a live test** — each logged error immediately tints the corresponding word so the witness/student see the spatial picture alongside the error log on the right.
 
 ## Index
 

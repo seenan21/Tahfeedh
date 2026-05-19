@@ -5,6 +5,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import type { LogErrorInput, PostTestSummary, TestRange, TestType } from '@tahfeedh/shared';
 import { supabase } from '../../lib/supabase';
 import { MushafPage } from '../../mushaf/MushafPage';
+import { loggedErrorsToStats } from '../../mushaf/getOverlayMarkers';
 import { ErrorLogModal } from './ErrorLogModal';
 import { ErrorLogPane } from './ErrorLogPane';
 import { PostTestSummaryModal } from './PostTestSummaryModal';
@@ -109,6 +110,11 @@ export function LiveTestRoute() {
 
   const rangeLabelStr = useMemo(() => (test ? rangeLabel(test.ranges) : ''), [test]);
 
+  // Live-test overlay: convert the running session's logged errors into the
+  // stats-row shape getOverlayMarkers expects, so each tap immediately tints
+  // the corresponding word on the mushaf as feedback to the witness.
+  const liveOverlay = useMemo(() => loggedErrorsToStats(session.errors), [session.errors]);
+
   if (loadError) {
     return (
       <Container py="md">
@@ -207,8 +213,8 @@ export function LiveTestRoute() {
           <MushafPage
             pageNumber={currentPage}
             onWordTap={handleWordTap}
-            // No overlays during the live test — markers would distract from
-            // recitation. Errors are shown in the right pane instead.
+            overlays={liveOverlay}
+            overlayMode="heatmap"
           />
         </Stack>
 

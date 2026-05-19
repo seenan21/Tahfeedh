@@ -12,7 +12,16 @@ import {
 } from './getOverlayMarkers';
 import classes from './MushafPage.module.css';
 
-export type OverlayMode = 'none' | 'simple' | 'heatmap' | 'colored';
+/**
+ * Two-mode overlay:
+ *   'none'    — no markers (clean read)
+ *   'heatmap' — recency-weighted intensity color + count badge per location
+ *
+ * The per-error-type palette (defined in getOverlayMarkers.ts as
+ * ERROR_TYPE_COLOR) is reserved for the error log pane / detail modal — the
+ * mushaf marker color itself is always intensity-based, not type-based.
+ */
+export type OverlayMode = 'none' | 'heatmap';
 
 export interface MushafPageProps {
   pageNumber: number;

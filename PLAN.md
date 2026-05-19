@@ -40,17 +40,34 @@
 
 ### Phase D — in progress (2026-05-19)
 
-Shipped today:
-- **Migration 0016 applied** — `submit_test(uuid, jsonb)` SECURITY DEFINER fn. Closes test, touches `ayah_review_state`, upserts `error_location_stats`, decays stale stats (cleared at counter ≥ 3), promotes pages on `strong_pass`+`newly_memorized`, returns `{new, recurring, cleared}` summary.
-- **`/api/tests/*` endpoints** — `create`, `:id/error` (streaming inserts), `:id/finish` (calls submit_test RPC after Express resolves ranges).
-- **Live test feature** at `/_authed/tests/$testId` — two-pane (MushafPage + ErrorLogPane), per-tap `ErrorLogModal` with inline QF Search for `wrong_verse`, post-test summary modal.
-- **Overlay computation** in `apps/web/src/mushaf/getOverlayMarkers.ts` — 3 modes (simple/heatmap/colored) wired through `MushafPage.overlays` prop.
-- **PageDetailsPanel** now reads real error stats + recent tests (was Phase-D placeholders).
-- **Mushaf rendering bug fixed** — words now read right-to-left (ADR 0016).
+**Backend (DB + Express):**
+- Migration 0016 applied — `submit_test(uuid, jsonb)` SECURITY DEFINER fn. Closes test, touches `ayah_review_state`, upserts `error_location_stats`, decays stale stats (cleared at counter ≥ 3), promotes pages on `strong_pass`+`newly_memorized`, returns `{new, recurring, cleared}` summary.
+- `/api/tests/*` endpoints — `create`, `:id/error` (streaming inserts, ADR 0018), `:id/finish` (calls submit_test RPC after Express resolves ranges via `pipelines/post-test/resolve.ts`).
 
-Still open (deferred from initial Phase D plan):
-- Full Tests history list — cut per scope decision; current Tests route shows Begin CTA + most-recent link only.
-- Mastery promotion (`memorized → mastered`), fail-downgrade, recent-revision stage machine — all M5.
+**Live-test feature** (`apps/web/src/features/live-test/`):
+- Two-pane `LiveTestRoute` at `/tests/$testId` — MushafPage + ErrorLogPane.
+- `ErrorLogModal` with 8 error types + inline QF Search field for `wrong_verse` (the differentiator).
+- `PostTestSummaryModal` with NEW / RECURRING / CLEARED sections + test duration display.
+- `TestCreationModal` with newly-memorized vs revision validation: rejects ranges containing already-passed pages, pre-fills with `next_new_lesson` for new-lesson tests. Trust nudge per ADR 0004.
+
+**Today / mushaf integration:**
+- Cache invalidation on test finish — `next_new_lesson`, `memorization_pages`, `error_location_stats`, and per-page panels all refetch. Today's NewLessonCard advances to the next page on `strong_pass`.
+- Overlays wired on My Mushaf and on the live test — `_authed.mushaf.tsx` fetches `error_location_stats` (heatmap on/off Switch, persisted). Live test page also passes the running `session.errors` through `loggedErrorsToStats` so the witness sees each tap immediately tint the word. Single overlay style (intensity heatmap + count badge); per-error-type color is reserved for the log pane / future detail modal.
+- PageDetailsPanel reads real error stats + recent tests on the displayed page (was Phase-D placeholders).
+- Mushaf rendering bug fixed — words now read right-to-left, lines fill edge-to-edge, canvas capped at 720px to mimic printed-mushaf proportions (ADR 0016).
+
+**Lock + session UX:**
+- Hard route lock in `_authed.tsx beforeLoad`: an in-progress test redirects any non-`/tests/$testId` navigation back to the live test.
+- Centered AppShell-header banner "Self-test in session · {witness} | {mm:ss}" with live ticking timer driven by `started_at`. No CTA (lock handles redirection).
+- Auto-abandon on logout — `handleSignOut` marks the in-progress test `status='abandoned'`, frees the unique-in-progress slot.
+
+**Shell visuals:**
+- Icon-rail sidebar — 64px collapsed (icons + tooltips); hover-expands to 268px overlay panel above main content (no resize, no push).
+
+**Still open (deferred to later phases):**
+- Full Tests history list — cut per scope decision; current Tests route shows Begin CTA + most-recent link only. (M6+)
+- Mastery promotion (`memorized → mastered`), fail-downgrade, recent-revision stage machine — M5.
+- **Today's-session machine** — discrete daily session rows with attempted-checkmarks, "Load next session" CTA, frozen-per-day semantics. Current Phase D regression: `NewLessonCard` shows "every page memorized" after one page is promoted because we only have Queue 1. Full breakdown in `notes-for-future.md` → "Today's Session machine (M5)".
 
 ### Latest ADRs (most relevant first for resuming)
 

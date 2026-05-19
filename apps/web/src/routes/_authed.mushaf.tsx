@@ -8,6 +8,7 @@ import {
   SegmentedControl,
   Skeleton,
   Stack,
+  Switch,
   Text,
   Tooltip,
 } from '@mantine/core';
@@ -62,10 +63,12 @@ async function fetchErrorStats(studentId: string): Promise<ErrorLocationStatsRow
 }
 
 function readStoredOverlayMode(): OverlayMode {
-  if (typeof window === 'undefined') return 'colored';
+  if (typeof window === 'undefined') return 'heatmap';
   const raw = window.localStorage.getItem(OVERLAY_MODE_KEY);
-  if (raw === 'none' || raw === 'simple' || raw === 'heatmap' || raw === 'colored') return raw;
-  return 'colored';
+  // Accept legacy values from when there were 4 modes — collapse to on/off.
+  if (raw === 'none') return 'none';
+  if (raw === 'heatmap' || raw === 'simple' || raw === 'colored') return 'heatmap';
+  return 'heatmap';
 }
 
 function readStoredPage(): number | null {
@@ -239,22 +242,13 @@ function MushafRoute() {
           </Group>
 
           <Group gap="md" align="center">
-            <Group gap={6} align="center">
-              <Text size="xs" c="dimmed">
-                Overlay
-              </Text>
-              <SegmentedControl
-                size="xs"
-                value={overlayMode}
-                onChange={(v) => setOverlayMode(v as OverlayMode)}
-                data={[
-                  { label: 'None', value: 'none' },
-                  { label: 'Simple', value: 'simple' },
-                  { label: 'Heatmap', value: 'heatmap' },
-                  { label: 'Colored', value: 'colored' },
-                ]}
-              />
-            </Group>
+            <Switch
+              size="sm"
+              label="Show errors"
+              checked={overlayMode === 'heatmap'}
+              onChange={(e) => setOverlayMode(e.currentTarget.checked ? 'heatmap' : 'none')}
+              styles={{ label: { fontSize: 12 } }}
+            />
             <Group gap="xs" align="center">
               <Text size="xs" c="dimmed">
                 Jump to

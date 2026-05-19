@@ -11,6 +11,11 @@ import type { OverlayMode } from './MushafPage';
  * a page's ayahs, produce one marker per visual location. Word-scope errors
  * (word_position != null) pin to that word; verse-scope errors (word_position
  * null) pin to the ayah-end marker.
+ *
+ * Single overlay style: intensity-weighted heatmap with a count badge. The
+ * per-error-type palette below stays exported for the right-pane error log
+ * and the future error detail modal (M7) — the mushaf marker color itself is
+ * recency-weighted, not type-based.
  */
 
 export type OverlayScope = 'word' | 'verse';
@@ -25,7 +30,7 @@ export interface OverlayMarker {
   count: number;
   /** Max intensity across merged rows = max(occurrence_count / (1 + tests_since_last_occurrence)). */
   intensity: number;
-  /** Most-recent error_type at this location (used by 'colored' mode). */
+  /** Most-recent error_type at this location (used by the modal, not the marker color). */
   dominantType: ErrorType;
   /** CSS color string for the marker pip. */
   color: string;
@@ -33,9 +38,9 @@ export interface OverlayMarker {
   signatures: string[];
 }
 
-// Distinct colors per error type for 'colored' mode. Tuned from DESIGN-SYSTEM §15.1
-// (will likely be refined). Keep these in CSS-token-ish form so they read well on parchment.
-const ERROR_TYPE_COLOR: Record<ErrorType, string> = {
+// Distinct colors per error type. Used by the modal / log pane only — NOT by
+// the mushaf marker color. Tuned from DESIGN-SYSTEM §15.1.
+export const ERROR_TYPE_COLOR: Record<ErrorType, string> = {
   tajweed: '#c2410c', // amber-red
   pronunciation: '#9333ea', // violet
   omission: '#dc2626', // red
@@ -45,8 +50,6 @@ const ERROR_TYPE_COLOR: Record<ErrorType, string> = {
   forgotten_verse: '#b91c1c', // brick
   hesitation: '#ca8a04', // honey
 };
-
-const SIMPLE_COLOR = '#b91c1c'; // brick.7
 
 // Heatmap ramp: 5 bands keyed off intensity. Anything < 0.2 → faint yellow,
 // 1.0+ → saturated red. DESIGN-SYSTEM §15.2 mentions a ramp; this is the MVP.
@@ -58,17 +61,9 @@ function heatmapColor(intensity: number): string {
   return '#7f1d1d'; // dark crimson
 }
 
-function colorFor(mode: OverlayMode, dominant: ErrorType, intensity: number): string {
-  switch (mode) {
-    case 'none':
-      return 'transparent';
-    case 'simple':
-      return SIMPLE_COLOR;
-    case 'heatmap':
-      return heatmapColor(intensity);
-    case 'colored':
-      return ERROR_TYPE_COLOR[dominant] ?? SIMPLE_COLOR;
-  }
+function colorFor(mode: OverlayMode, intensity: number): string {
+  if (mode === 'none') return 'transparent';
+  return heatmapColor(intensity);
 }
 
 function intensityOf(row: ErrorLocationStatsRow): number {
@@ -136,7 +131,7 @@ export function getOverlayMarkers(
       count: totalCount,
       intensity,
       dominantType: dominant,
-      color: colorFor(mode, dominant, intensity),
+      color: colorFor(mode, intensity),
       signatures: list.map((r) => r.signature),
     });
   }
@@ -180,4 +175,53 @@ export function getErrorsAtLocation<T extends ErrorAtLocationInput>(
     if (wordPosition == null) return e.word_position == null;
     return e.word_position === wordPosition;
   });
+}
+
+/**
+ * Adapter — convert the live-test session's in-memory `LoggedError`-shaped
+ * rows into stats-row shape so `getOverlayMarkers` can render them on the
+ * mushaf during the test, before any submission to `error_location_stats`.
+ *
+ * Groups by (surah, ayah, word, error_type). `tests_since_last_occurrence`
+ * is 0 (we're inside the test), `cleared` is false. The count is the number
+ * of times the same signature was logged in this session.
+ */
+export interface LoggedErrorLike {
+  surah: number;
+  ayah: number;
+  word_position: number | null;
+  error_type: ErrorType;
+  created_at: string;
+}
+export function loggedErrorsToStats(errors: LoggedErrorLike[]): ErrorLocationStatsRow[] {
+  const buckets = new Map<string, { e: LoggedErrorLike; count: number; latest: string }>();
+  for (const e of errors) {
+    const key = `${e.surah}:${e.ayah}:${e.word_position ?? 'end'}:${e.error_type}`;
+    const existing = buckets.get(key);
+    if (existing) {
+      existing.count += 1;
+      if (e.created_at > existing.latest) existing.latest = e.created_at;
+    } else {
+      buckets.set(key, { e, count: 1, latest: e.created_at });
+    }
+  }
+  const out: ErrorLocationStatsRow[] = [];
+  for (const { e, count, latest } of buckets.values()) {
+    out.push({
+      id: '',
+      student_id: '',
+      signature: `${e.surah}:${e.ayah}:${e.word_position ?? ''}:${e.error_type}`,
+      surah_number: e.surah,
+      ayah_number: e.ayah,
+      word_position: e.word_position,
+      error_type: e.error_type,
+      occurrence_count: count,
+      first_seen_at: latest,
+      last_seen_at: latest,
+      tests_since_last_occurrence: 0,
+      cleared: false,
+      updated_at: latest,
+    });
+  }
+  return out;
 }

@@ -53,7 +53,9 @@ function OnboardingPage() {
           {state.step === 1 && (
             <Step1Path
               path={state.path}
+              direction={state.direction}
               onSelect={(path) => dispatch({ type: 'SET_PATH', path })}
+              onDirection={(direction) => dispatch({ type: 'SET_DIRECTION', direction })}
               onContinue={() => dispatch({ type: 'NEXT' })}
             />
           )}

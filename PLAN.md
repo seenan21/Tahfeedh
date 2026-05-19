@@ -14,9 +14,9 @@
 - **Doc surface:** done — DESIGN.md + DESIGN-SYSTEM.md patched to reflect shipped state; 25 navigation `CLAUDE.md` files across the project (root + every code subdir).
 - **Deploy surface (Railway):** healthy — `@tahfeedh/shared` builds to `dist/` (root scripts enforce shared → server → web order), Node engine pinned to 22 (`.nvmrc` + `engines.node` for the WebSocket-realtime requirement). Railway build command is `npm install --include=dev && npm run build:server`; set `NIXPACKS_NODE_VERSION=22` in Railway env vars.
 - **M2 (Mushaf), data half:** done — 604 per-page JSON files, metadata.json, derived quran-index.json, 604 page-scoped QPC V2 fonts auto-loaded via generated CSS, deploy wiring (`npm run build:web`).
-- **M2 (Mushaf), components half:** done — `<MushafPage />` renderer (lazy per-page JSON + per-page font + RTL + delegated word/verse taps), 604-page grid grouped by juz, `MarkPageModal`, and a reader Drawer all shipped under `apps/web/src/mushaf/`.
-- **Phase C:** done (2026-05-18) — Mushaf renderer + grid + marking endpoint + Queue 1 RPC. ADRs 0012 (marking endpoint shape), 0013 (Queue 1 lives in Postgres). Migration `0014_marking_and_next_lesson` is staged on disk; **needs to be applied** (the marking endpoint and `next_new_lesson` RPC won't function until the migration is live in the remote DB).
-- **Design surface:** stable. Latest ADRs: 0007 (quran-index artifact), 0008 (onboarding bulk-write), 0009 (SilkBackground entry-points only), 0010 (modernized shell), 0011 (error overlay merge at render time), 0012 (memorization marking endpoint), 0013 (next_new_lesson RPC).
+- **M2 (Mushaf), components half:** done — `<MushafPage />` renderer (lazy per-page JSON + per-page font + RTL + delegated word/verse taps), reader-first My Mushaf route with inline `PageDetailsPanel`, collapsible juz tracker, prev/next/jump toolbar. ADR 0015 ripped out the manual marking UI in favor of test-driven status.
+- **Phase C:** done (2026-05-18) — Mushaf reader + tracker + Queue 1 RPC + direction preference. ADRs 0013 (Queue 1 in Postgres), 0014 (hifz direction), 0015 (status is test-driven; supersedes 0012). Migrations 0014 + 0015 applied to the remote DB.
+- **Design surface:** stable. Latest ADRs: 0008 (onboarding bulk-write), 0009 (SilkBackground entry-points only), 0010 (modernized shell), 0011 (error overlay merge at render time), 0012 (marking endpoint — superseded), 0013 (next_new_lesson RPC), 0014 (hifz direction preference), 0015 (status is test-driven).
 
 ---
 

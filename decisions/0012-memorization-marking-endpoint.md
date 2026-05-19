@@ -1,8 +1,8 @@
 # 0012 — Memorization Marking via Express + SQL Function
 
 **Date:** 2026-05-18
-**Status:** Implemented
-**Milestone:** M2 / M3 (Phase C)
+**Status:** Superseded by ADR 0015 (memorization status is test-driven). The SQL function `mark_memorization(uuid, jsonb)` remains in the DB from migration 0014 but no route or UI exposes it; it is reserved for the post-M8 "Edit Memorization / Recalibrate" settings flow.
+**Milestone:** M2 / M3 (Phase C — endpoint built and then removed)
 
 ## Context
 Phase C (PLAN.md task 9) adds an in-app way to mark a mushaf page as memorized, in-progress (with partial verses), or untouched. Three tables must move together:

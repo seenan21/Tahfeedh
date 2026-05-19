@@ -17,5 +17,7 @@ Architecture Decision Records. Numbered, append-only. See `CLAUDE.md` at repo ro
 | `0009-silkbackground-entry-points-only.md` | SilkBackground only on /login, /signup, / | Adding R3F surfaces or deciding where motion belongs |
 | `0010-modernize-shell-visuals.md` | Allows same-anchor gradients + glass header inside the app shell | Reaching for a new gradient/depth treatment in app-shell screens |
 | `0011-error-overlay-merge-at-render-time.md` | Errors merge at marker computation, not at storage — `error_log` stays an immutable occurrence list | Touching mushaf overlay rendering, marker computation, or the error detail modal |
-| `0012-memorization-marking-endpoint.md` | Marking goes through Express + `mark_memorization` SQL fn (same shape as onboarding) | Touching the marking endpoint, the SQL fn, or RLS on derived tables |
+| `0012-memorization-marking-endpoint.md` | **Superseded by 0015.** The marking endpoint was built then removed; the SQL fn is reserved for the post-M8 Edit Memorization flow | Wiring the future Settings recalibrate flow |
 | `0013-next-new-lesson-rpc.md` | Queue 1 lives in Postgres as `next_new_lesson(uuid)` RPC | Touching the new-lesson slot on Today or the algorithm in M5 |
+| `0014-hifz-direction-preference.md` | `hifz_direction` ('forward' Baqarah-first vs 'backward' Juz-Amma-first) on `student_settings`; `next_new_lesson` honors it | Touching Queue 1, onboarding step 1, or settings page direction toggle |
+| `0015-memorization-status-test-driven.md` | Post-onboarding, `memorization_page.status` only changes via the post-test pipeline; the marking UI was removed | Resisting "let me just mark this page" UI temptations; planning the future Edit-Memorization flow |

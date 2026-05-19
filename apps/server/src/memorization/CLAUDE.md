@@ -1,6 +1,6 @@
 # apps/server/src/memorization/
 
-Pure expansion helpers for the `/api/memorization/mark` endpoint (ADR 0012). Same shape as `apps/server/src/onboarding/` — kept separate from the route so it's easy to unit-test.
+Pure expansion helpers for page-level ayah math. The original `/api/memorization/mark` endpoint was removed in ADR 0015 (status is test-driven); these helpers are kept because the Phase D post-test pipeline and the future Edit-Memorization settings flow both need page → ayah expansion.
 
 ## Index
 

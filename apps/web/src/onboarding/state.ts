@@ -1,4 +1,4 @@
-import type { OnboardingFinishInput } from '@tahfeedh/shared';
+import type { HifzDirection, OnboardingFinishInput } from '@tahfeedh/shared';
 
 export type OnboardingPath = 'fresh' | 'partial' | 'complete';
 
@@ -18,6 +18,7 @@ export interface InProgressMarker {
 export interface OnboardingState {
   step: StepNumber;
   path: OnboardingPath | null;
+  direction: HifzDirection;
   juzs: number[];
   surahs: SurahSelection[];
   inProgress: InProgressMarker | undefined;
@@ -30,6 +31,7 @@ export interface OnboardingState {
 export const initialState: OnboardingState = {
   step: 1,
   path: null,
+  direction: 'forward',
   juzs: [],
   surahs: [],
   inProgress: undefined,
@@ -41,6 +43,7 @@ export const initialState: OnboardingState = {
 
 export type Action =
   | { type: 'SET_PATH'; path: OnboardingPath }
+  | { type: 'SET_DIRECTION'; direction: HifzDirection }
   | { type: 'TOGGLE_JUZ'; juz: number }
   | { type: 'SET_JUZS'; juzs: number[] }
   | { type: 'TOGGLE_SURAH'; surah: number }
@@ -57,6 +60,9 @@ export function reducer(state: OnboardingState, action: Action): OnboardingState
   switch (action.type) {
     case 'SET_PATH':
       return { ...state, path: action.path };
+
+    case 'SET_DIRECTION':
+      return { ...state, direction: action.direction };
 
     case 'TOGGLE_JUZ': {
       const has = state.juzs.includes(action.juz);
@@ -139,5 +145,6 @@ export function toFinishPayload(state: OnboardingState): OnboardingFinishInput {
       newPerDay: state.newPerDay,
       revisionPerDay: state.revisionPerDay,
     },
+    hifzDirection: state.direction,
   };
 }

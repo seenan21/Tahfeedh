@@ -2,8 +2,22 @@
 
 ## [Unreleased]
 
+### Changed
+- **My Mushaf restructured (ADR 0015).** The route is now reader-first: the actual mushaf page renders on the main canvas (no Drawer), with a sticky read-only `PageDetailsPanel` to the right showing status + memorized timestamp + review freshness (from `ayah_review_state`) + Phase-D placeholders for error summary and recent tests. A SegmentedControl toggles to a `Tracker` view; the new `MushafGrid` is a collapsible accordion with one juz per row (each shows a stacked progress bar + counts; expanding reveals the page cells). Reader toolbar: prev / next / page indicator / "Jump to" input. Last-selected page persists in `localStorage`; initial page comes from cached `next_new_lesson` or page 1.
+- **Removed manual memorization marking** — `MarkPageModal`, `POST /api/memorization/mark`, the `/api/memorization` mount, and the `markMemorizationSchema` / `MarkMemorizationInput` / `MemorizationMarkStatus` types are all gone. Per ADR 0015, `memorization_page.status` changes only via the post-test pipeline (Phase D) or onboarding's `commit_onboarding` bulk-write. The SQL function `mark_memorization(uuid, jsonb)` stays in the DB (reserved for the post-M8 Edit Memorization Settings flow — see `notes-for-future.md`).
+- ADR 0012 (Memorization Marking via Express + SQL Function) status updated to Superseded by ADR 0015.
+
 ### Added
-- Migration `0014_marking_and_next_lesson` (staged on disk; not yet applied to remote) — `mark_memorization(uuid, jsonb)` SECURITY DEFINER function for service-role writes across `memorization_page`, `memorization_verse`, `ayah_review_state` in one transaction (ADR 0012); `next_new_lesson(uuid)` SECURITY DEFINER function for Queue 1 frontier walk granted to `authenticated` (ADR 0013).
+- ADR 0015 (`decisions/0015-memorization-status-test-driven.md`).
+- `apps/web/src/mushaf/PageDetailsPanel.tsx` + module CSS — the new read-only side panel.
+- `apps/web/src/mushaf/MushafRoute.module.css` — toolbar + two-column reader layout.
+- `notes-for-future.md` — new entry for the post-M8 Edit Memorization / Recalibrate flow (two restore paths documented).
+- Migration `0015_hifz_direction` (applied) — adds `hifz_direction` enum (`'forward' | 'backward'`) + `student_settings.hifz_direction` column (default `'forward'`, NOT NULL). Rewrites `next_new_lesson(uuid)` to read the column and pick the lowest-unmemorized page in forward mode, highest-unmemorized in backward mode (ADR 0014, addresses traditional Juz-Amma-first hifz path). Rewrites `commit_onboarding(uuid, jsonb)` to accept `hifzDirection` in the payload and write it through.
+- Shared types: `HifzDirection` union; `onboardingFinishSchema` extended with `hifzDirection` (default `'forward'`).
+- Server: `expandSelections()` forwards `hifzDirection` on `CommitOnboardingPayload`; the `/api/onboarding/finish` route already RPCs the SQL function with the full payload.
+- Onboarding state: `OnboardingState.direction` (default `'forward'`), `SET_DIRECTION` action, `toFinishPayload` includes `hifzDirection`.
+- `Step1Path.tsx` adds a bilingual two-card direction picker ("From Al-Baqarah forward" / "From Juz Amma first") below the path picker — every student now declares whether their frontier advances forward or backward.
+- Migration `0014_marking_and_next_lesson` (applied) — `mark_memorization(uuid, jsonb)` SECURITY DEFINER function for service-role writes across `memorization_page`, `memorization_verse`, `ayah_review_state` in one transaction (ADR 0012); `next_new_lesson(uuid)` SECURITY DEFINER function for Queue 1 frontier walk granted to `authenticated` (ADR 0013). Superseded by 0015 (direction-aware).
 - `POST /api/memorization/mark` Express endpoint — verifies bearer, validates payload with `markMemorizationSchema`, expands `pageNumber` into the page's ayah set via `apps/server/src/memorization/pageAyahs.ts`, RPC-calls `mark_memorization`. Mounted in `apps/server/src/index.ts`.
 - Shared types: `MarkMemorizationInput`, `MemorizationMarkStatus`, `NextNewLesson`, `NextNewLessonKind`, `MidpointAyahBreak`; `MushafWord` now carries `code_v2 + char_type` (matches the per-page JSON emitted by `build-quran-data.ts` and ADR 0003). Shared schema adds `markMemorizationSchema` + `ayahKeySchema` (Zod).
 - `apps/web/src/mushaf/MushafPage.tsx` — renderer for one Madani 15-line page (lazy-loads `pages/{N}.json`, applies `font-family: 'QPC V2 P{N}'`, single delegated click handler for word + verse taps). Accepts `overlays + overlayMode` props for Phase D (stubbed: only `'none'` rendered). `compact` prop for grid drill-down peeks.

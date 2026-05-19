@@ -22,6 +22,8 @@ export const testRangesSchema = z.array(testRangeSchema).min(1);
 // Client sends user selections; the server expands them against the static
 // quran index and calls the commit_onboarding SQL function.
 
+export const hifzDirectionSchema = z.enum(['forward', 'backward']);
+
 export const onboardingFinishSchema = z.object({
   path: z.enum(['fresh', 'partial', 'complete']),
   selections: z.object({
@@ -46,33 +48,12 @@ export const onboardingFinishSchema = z.object({
     newPerDay: z.number().min(0.5).max(20),
     revisionPerDay: z.number().min(0).max(20),
   }),
+  hifzDirection: hifzDirectionSchema.default('forward'),
 });
 
 export type OnboardingFinishInput = z.infer<typeof onboardingFinishSchema>;
 
-// Memorization marking (Phase C, ADR 0012).
-
-export const ayahKeySchema = z.object({
-  surah: z.number().int().min(1).max(114),
-  ayah: z.number().int().min(1),
-});
-
-export const markMemorizationSchema = z
-  .object({
-    pageNumber: z.number().int().min(1).max(604),
-    status: z.enum(['memorized', 'in_progress', 'untouched']),
-    verses: z.array(ayahKeySchema).optional(),
-  })
-  .superRefine((val, ctx) => {
-    if (val.status === 'in_progress') {
-      if (!val.verses || val.verses.length === 0) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: "verses[] is required and non-empty when status is 'in_progress'",
-          path: ['verses'],
-        });
-      }
-    }
-  });
-
-export type MarkMemorizationInputParsed = z.infer<typeof markMemorizationSchema>;
+// (Note: a markMemorizationSchema lived here in Phase C but was removed when
+// ADR 0015 reverted to test-driven memorization. The SQL function
+// mark_memorization() still exists in the DB, reserved for the post-M8 Edit
+// Memorization settings flow — see notes-for-future.md.)

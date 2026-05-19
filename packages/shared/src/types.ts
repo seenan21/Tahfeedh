@@ -80,20 +80,6 @@ export interface MushafPageData {
   midpoint_ayah_break: MidpointAyahBreak;
 }
 
-// Marking endpoint (Phase C — ADR 0012)
-
-export type MemorizationMarkStatus = 'memorized' | 'in_progress' | 'untouched';
-
-// Wire payload to POST /api/memorization/mark. The server expands `pageNumber`
-// into the page's full ayah set before calling mark_memorization SQL fn.
-export interface MarkMemorizationInput {
-  pageNumber: number;
-  status: MemorizationMarkStatus;
-  // Required when status === 'in_progress'. Each entry must be an ayah that
-  // lives on `pageNumber` (validated server-side against quran-index.json).
-  verses?: Array<{ surah: number; ayah: number }>;
-}
-
 // Queue 1 RPC return shape (next_new_lesson, ADR 0013)
 export type NextNewLessonKind = 'continue' | 'begin';
 
@@ -101,6 +87,11 @@ export interface NextNewLesson {
   page_number: number;
   kind: NextNewLessonKind;
 }
+
+// Hifz direction preference (ADR 0014). 'forward' = Baqarah-first (page 1 → 604),
+// 'backward' = Juz-Amma-first (page 604 → 1). Used by next_new_lesson and the
+// post-test pipeline (Phase D / M5) when picking the next page to suggest.
+export type HifzDirection = 'forward' | 'backward';
 
 // Quran index (emitted by scripts/build-quran-data.ts → quran-index.json)
 

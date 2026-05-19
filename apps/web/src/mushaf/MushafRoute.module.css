@@ -1,0 +1,28 @@
+.toolbar {
+  background: rgba(255, 255, 193, 0.08);
+  backdrop-filter: blur(10px);
+  border-radius: 999px;
+  padding: 6px 14px;
+  border: 1px solid rgba(255, 255, 193, 0.16);
+}
+
+.readerLayout {
+  align-items: flex-start;
+}
+
+.mushafColumn {
+  flex: 1 1 600px;
+  min-width: 0;
+}
+
+.detailsColumn {
+  flex: 0 0 320px;
+  width: 320px;
+}
+
+@media (max-width: 900px) {
+  .detailsColumn {
+    flex: 1 1 100%;
+    width: 100%;
+  }
+}

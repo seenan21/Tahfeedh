@@ -20,3 +20,4 @@ Numbered SQL migrations applied in order. Each file is idempotent within itself;
 | `0012_onboarding_complete.sql` | `student_settings.onboarding_complete` boolean for the gate | Touching the `_authed` gate or signup → onboarding flow |
 | `0013_session_size_and_onboarding_writes.sql` | NUMERIC(3,1) on `pages_per_session_new`; `commit_onboarding(uuid, jsonb)` SQL function | Touching session size or the onboarding finish bulk-write |
 | `0014_marking_and_next_lesson.sql` | `mark_memorization(uuid, jsonb)` SECURITY DEFINER fn for service role + `next_new_lesson(uuid)` SECURITY DEFINER fn for authenticated callers (ADRs 0012, 0013) | Touching the marking SQL or Queue 1 frontier walk |
+| `0015_hifz_direction.sql` | `hifz_direction` enum + column on `student_settings`; `next_new_lesson` rewritten to honor direction; `commit_onboarding` accepts `hifzDirection` in payload (ADR 0014) | Touching direction-aware Queue 1 logic or the onboarding payload |

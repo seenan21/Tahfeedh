@@ -20,6 +20,7 @@ export interface CommitOnboardingPayload {
   newPerDay: number;
   revisionPerDay: number;
   hasCompletedQuran: boolean;
+  hifzDirection: 'forward' | 'backward';
 }
 
 /**
@@ -44,6 +45,7 @@ export function expandSelections(
   const baseSession = {
     newPerDay: input.session.newPerDay,
     revisionPerDay: input.session.revisionPerDay,
+    hifzDirection: input.hifzDirection,
   };
 
   if (input.path === 'fresh') {

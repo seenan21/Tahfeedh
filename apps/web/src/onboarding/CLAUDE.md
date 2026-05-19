@@ -7,7 +7,7 @@ The 3-step onboarding flow shown to brand-new students. Mounted at `/onboarding`
 | File | What | When to read |
 |---|---|---|
 | `state.ts` | `useReducer` state + actions + `toFinishPayload()` that produces the endpoint body matching `onboardingFinishSchema` | Adding a new step, changing what's collected, or modifying the finish payload |
-| `Step1Path.tsx` | Path picker: Fresh / Partial / Complete. Routes Partial → Step 2, others → Step 3 | Tweaking Step 1 |
+| `Step1Path.tsx` | Path picker (Fresh / Partial / Complete) + direction picker (Forward / Backward, ADR 0014). Routes Partial → Step 2, others → Step 3 | Tweaking Step 1 or the direction question |
 | `Step2Capture.tsx` | Mode toggle (Juz / Surah) + selections panel + collapsible partial-page picker | Tweaking Step 2 layout |
 | `JuzGrid.tsx` | 30-cell juz selector with shortcut chips (`1-5`, `26-30`, `All`, `Clear`) | Tweaking juz-selection visuals |
 | `SurahList.tsx` | Searchable list of 114 surahs with per-row "ayahs 1 to N" partial input | Tweaking surah-selection UX |

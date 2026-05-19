@@ -21,6 +21,7 @@ export const Route = createFileRoute('/_authed/tests/')({
 
 function TestsPage() {
   const navigate = useNavigate();
+  const { user } = Route.useRouteContext();
   const [opened, setOpened] = useState(false);
   const [latest, setLatest] = useState<RecentTestRow | null>(null);
   const [openInProgress, setOpenInProgress] = useState<string | null>(null);
@@ -117,6 +118,7 @@ function TestsPage() {
         opened={opened}
         onClose={() => setOpened(false)}
         onCreated={(id) => navigate({ to: '/tests/$testId', params: { testId: id } })}
+        studentId={user.id}
       />
     </Container>
   );

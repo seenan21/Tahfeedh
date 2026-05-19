@@ -106,30 +106,60 @@ export function LiveTestRoute() {
   if (loadError) {
     return (
       <Container py="md">
-        <Alert color="brick">{loadError}</Alert>
+        <Stack gap="sm">
+          <Text c="parchment.0" fw={700} fz="lg">
+            Live test
+          </Text>
+          <Alert color="brick" title="Failed to load test">
+            {loadError}
+          </Alert>
+          <Group>
+            <Button variant="default" onClick={() => navigate({ to: '/tests' })}>
+              Back to Tests
+            </Button>
+          </Group>
+        </Stack>
       </Container>
     );
   }
   if (!test) {
     return (
-      <Center mih={400}>
-        <Loader />
-      </Center>
+      <Container py="md">
+        <Stack gap="sm" align="center" mih={300} justify="center">
+          <Loader color="parchment.0" />
+          <Text c="parchment.0" size="sm">
+            Loading test {testId.slice(0, 8)}…
+          </Text>
+        </Stack>
+      </Container>
     );
   }
   if (test.status !== 'in_progress' && !summaryOpen) {
     return (
       <Container py="md">
-        <Alert>This test is already {test.status}.</Alert>
-        <Group mt="md">
-          <Button onClick={() => navigate({ to: '/today' })}>Back to Today</Button>
-        </Group>
+        <Stack gap="sm">
+          <Text c="parchment.0" fw={700} fz="lg">
+            Live test
+          </Text>
+          <Alert>This test is already {test.status}.</Alert>
+          <Group>
+            <Button onClick={() => navigate({ to: '/today' })}>Back to Today</Button>
+          </Group>
+        </Stack>
       </Container>
     );
   }
 
   return (
     <Container size="xl" py="md">
+      <Stack gap={2} mb="md">
+        <Text size="xs" tt="uppercase" c="parchment.0" fw={700} lts={0.8} style={{ opacity: 0.85 }}>
+          Live test
+        </Text>
+        <Text c="parchment.0" fw={700} fz="lg">
+          {test.test_type === 'newly_memorized' ? 'New lesson' : 'Revision'} · {rangeLabelStr}
+        </Text>
+      </Stack>
       <div
         style={{
           display: 'grid',

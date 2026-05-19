@@ -6,23 +6,38 @@
   border: 1px solid rgba(255, 255, 193, 0.16);
 }
 
+/* Grid layout: mushaf canvas (fixed 720px) + details panel (320px), with the
+   mushaf canvas pinned right-of-center so the details panel always sits to its
+   right rather than wrapping below. */
 .readerLayout {
+  display: grid;
+  grid-template-columns: minmax(0, 720px) 320px;
+  justify-content: center;
   align-items: flex-start;
+  gap: 24px;
 }
 
 .mushafColumn {
-  flex: 1 1 600px;
   min-width: 0;
 }
 
 .detailsColumn {
-  flex: 0 0 320px;
   width: 320px;
+  position: sticky;
+  top: 96px;
 }
 
-@media (max-width: 900px) {
+/* On screens too narrow to hold the canvas + panel side-by-side, drop the
+   panel below — but use a much smaller breakpoint than before (1100px → 760px)
+   so the side-by-side layout holds in most reasonable viewports. */
+@media (max-width: 1080px) {
+  .readerLayout {
+    grid-template-columns: 1fr;
+  }
   .detailsColumn {
-    flex: 1 1 100%;
+    position: static;
     width: 100%;
+    max-width: 720px;
+    margin-inline: auto;
   }
 }

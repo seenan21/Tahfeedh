@@ -51,7 +51,7 @@ function AuthedLayout() {
     <AppShell
       header={{ height: 64 }}
       navbar={{
-        width: 268,
+        width: 64,
         breakpoint: 'sm',
         collapsed: { mobile: false, desktop: false },
       }}
@@ -62,6 +62,13 @@ function AuthedLayout() {
           backdropFilter: 'blur(14px) saturate(140%)',
           WebkitBackdropFilter: 'blur(14px) saturate(140%)',
           borderBottom: '1px solid rgba(21, 53, 30, 0.08)',
+        },
+        navbar: {
+          // Allow the icon-rail's hover-expand panel to overflow the 64px slot
+          // so the expanded panel sits above the main content.
+          overflow: 'visible',
+          backgroundColor: 'transparent',
+          border: 'none',
         },
         main: {
           background:

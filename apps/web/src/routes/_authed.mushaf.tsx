@@ -226,7 +226,7 @@ function MushafRoute() {
       {/* Main canvas */}
       {viewMode === 'reader' ? (
         selectedPage > 0 ? (
-          <Group align="flex-start" gap="lg" wrap="wrap" className={classes.readerLayout}>
+          <Box className={classes.readerLayout}>
             <Box className={classes.mushafColumn}>
               <MushafPage pageNumber={selectedPage} />
             </Box>
@@ -237,7 +237,7 @@ function MushafRoute() {
                 pageStatus={pageStatus}
               />
             </Box>
-          </Group>
+          </Box>
         ) : (
           <Skeleton height={480} radius="lg" />
         )

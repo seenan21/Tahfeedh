@@ -41,38 +41,45 @@ function NavRow({ item }: { item: NavItem }) {
   const isActive = !!matchRoute({ to: item.to, fuzzy: false });
   const Icon = item.icon;
   return (
-    <Link to={item.to} className={classes.navItem} data-active={isActive}>
-      <Icon className={classes.icon} size={18} strokeWidth={1.75} />
-      <span style={{ flex: 1 }}>{item.label}</span>
-      <span
-        style={{
-          fontFamily: 'Amiri, serif',
-          fontSize: 13,
-          direction: 'rtl',
-          opacity: isActive ? 0.85 : 0.45,
-          transition: 'opacity 180ms ease',
-        }}
-      >
-        {item.arabic}
-      </span>
+    <Link
+      to={item.to}
+      className={classes.navItem}
+      data-active={isActive}
+      title={item.label}
+      aria-label={item.label}
+    >
+      <Icon className={classes.icon} size={20} strokeWidth={1.75} />
+      <span className={classes.label}>{item.label}</span>
+      <span className={classes.labelArabic}>{item.arabic}</span>
     </Link>
   );
 }
 
+/**
+ * Icon-rail with hover-expand overlay. The outer wrap stays 64px wide so the
+ * AppShell layout reserves that space; on hover the inner panel grows to
+ * 268px ABOVE the main content (z-index 50, box-shadow). Main content does
+ * not resize.
+ */
 export function AppSidebar({ role }: { role: UserRole }) {
   const items = role === 'student' ? STUDENT_NAV : TEACHER_NAV;
-  const sectionLabel = role === 'student' ? 'Hifz workspace' : 'Teacher workspace';
   return (
-    <nav className={classes.navWrap}>
-      <div className={classes.brandMark}>
-        <div className={classes.arabic}>تَحفِيظ</div>
-        <div className={classes.english}>Tahfeedh</div>
-      </div>
-      <div className={classes.sectionLabel}>{sectionLabel}</div>
-      {items.map((item) => (
-        <NavRow key={item.to} item={item} />
-      ))}
-      <div className={classes.footer}>v0.1 · hackathon build</div>
-    </nav>
+    <div className={classes.railWrap}>
+      <nav className={classes.rail} aria-label="Primary navigation">
+        <div className={classes.brandMark}>
+          <div className={classes.brandArabic}>تَحفِيظ</div>
+          <div className={classes.brandEnglish}>Tahfeedh</div>
+        </div>
+        <div className={classes.items}>
+          {items.map((item) => (
+            <NavRow key={item.to} item={item} />
+          ))}
+        </div>
+        <div className={classes.footer}>
+          <span className={classes.footerCollapsed}>v0.1</span>
+          <span className={classes.footerExpanded}>v0.1 · hackathon build</span>
+        </div>
+      </nav>
+    </div>
   );
 }

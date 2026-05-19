@@ -1,48 +1,97 @@
 /* =========================================================================
- * AppSidebar — sidebar nav item styling
+ * AppSidebar — icon-rail with hover-expand overlay.
  *
- * Why a CSS module instead of inline styles: hover/focus pseudo-classes
- * can't be expressed in inline style, and reaching for onMouseEnter/Leave
- * fights React state (the bug we just had where hover "sticks"). CSS does
- * this correctly for free.
+ * - .railWrap stays 64px wide (the AppShell.Navbar slot).
+ * - .rail is positioned absolute and grows to 268px on hover, overlapping
+ *   the main content (z-index 50). Main content does not resize.
  * ========================================================================= */
 
-.navWrap {
+.railWrap {
   position: relative;
-  padding: 12px 12px 24px;
+  width: 64px;
+  height: 100%;
+}
+
+.rail {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 64px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  height: 100%;
+  padding: 10px 8px 16px;
+  gap: 6px;
+  overflow: hidden;
+  z-index: 50;
   background:
     linear-gradient(180deg,
       var(--mantine-color-parchment-0) 0%,
       color-mix(in srgb, var(--mantine-color-parchment-0) 92%, var(--mantine-color-sage-1)) 100%);
+  border-right: 1px solid color-mix(in srgb, var(--mantine-color-mihrab-9) 8%, transparent);
+  transition:
+    width 220ms cubic-bezier(0.4, 0, 0.2, 1),
+    box-shadow 220ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+.rail:hover,
+.rail:focus-within {
+  width: 268px;
+  box-shadow: 12px 0 36px -8px rgba(21, 53, 30, 0.25);
+}
+
+/* Brand mark — only the Arabic glyph shows when collapsed (centered),
+   English fades in when expanded. */
 .brandMark {
-  padding: 8px 14px 14px;
+  padding: 6px 8px 14px;
   margin-bottom: 4px;
   border-bottom: 1px solid color-mix(in srgb, var(--mantine-color-mihrab-9) 8%, transparent);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  min-height: 48px;
 }
 
-.brandMark .arabic {
+.brandArabic {
   font-family: 'Cairo', sans-serif;
   font-weight: 700;
   font-size: 22px;
   line-height: 1;
   direction: rtl;
   color: var(--mantine-color-mihrab-9);
+  width: 48px;
+  text-align: center;
+  transition: width 220ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.brandMark .english {
+.rail:hover .brandArabic,
+.rail:focus-within .brandArabic {
+  width: auto;
+  text-align: start;
+}
+
+.brandEnglish {
   font-family: 'Playfair Display', serif;
   font-weight: 700;
-  font-size: 18px;
+  font-size: 16px;
   line-height: 1;
   letter-spacing: 0.02em;
   color: color-mix(in srgb, var(--mantine-color-mihrab-9) 70%, transparent);
-  margin-top: 4px;
+  opacity: 0;
+  transition: opacity 180ms ease 60ms;
+  white-space: nowrap;
+}
+
+.rail:hover .brandEnglish,
+.rail:focus-within .brandEnglish {
+  opacity: 1;
+}
+
+.items {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .navItem {
@@ -50,14 +99,13 @@
   --nav-border: transparent;
   --nav-fg: var(--mantine-color-mihrab-9);
   --nav-weight: 500;
-  --nav-icon-opacity: 0.65;
-  --nav-icon-scale: 1;
+  --nav-icon-opacity: 0.7;
 
   position: relative;
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 10px 14px;
+  padding: 10px 12px;
   border-radius: 10px;
   border-left: 3px solid var(--nav-border);
   background: var(--nav-bg);
@@ -66,23 +114,22 @@
   font-size: 14px;
   text-decoration: none;
   cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
   transition:
     background 180ms cubic-bezier(0.4, 0, 0.2, 1),
-    border-color 180ms cubic-bezier(0.4, 0, 0.2, 1),
-    transform 180ms cubic-bezier(0.4, 0, 0.2, 1);
+    border-color 180ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .navItem .icon {
-  flex: 0 0 18px;
+  flex: 0 0 20px;
   opacity: var(--nav-icon-opacity);
-  transform: scale(var(--nav-icon-scale));
-  transition: opacity 180ms ease, transform 180ms cubic-bezier(0.4, 0, 0.2, 1);
+  transition: opacity 180ms ease;
 }
 
 .navItem:hover {
-  --nav-bg: color-mix(in srgb, var(--mantine-color-sage-1) 70%, transparent);
-  --nav-icon-opacity: 0.95;
-  transform: translateX(2px);
+  --nav-bg: color-mix(in srgb, var(--mantine-color-sage-1) 80%, transparent);
+  --nav-icon-opacity: 1;
 }
 
 .navItem:focus-visible {
@@ -99,31 +146,65 @@
   --nav-border: var(--mantine-color-mihrab-9);
   --nav-weight: 700;
   --nav-icon-opacity: 1;
-  --nav-icon-scale: 1.08;
-  transform: translateX(0);
   box-shadow:
     inset 0 0 0 1px color-mix(in srgb, var(--mantine-color-sage-3) 60%, transparent);
 }
 
-/* Override hover-translate when the item is already active so it doesn't
-   jump twice on initial hover. */
-.navItem[data-active='true']:hover {
-  transform: translateX(0);
+.label,
+.labelArabic {
+  opacity: 0;
+  transition: opacity 180ms ease 80ms;
 }
 
-.sectionLabel {
-  padding: 16px 14px 6px;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: color-mix(in srgb, var(--mantine-color-mihrab-9) 50%, transparent);
+.label {
+  flex: 1;
+}
+
+.labelArabic {
+  font-family: 'Amiri, serif';
+  font-size: 13px;
+  direction: rtl;
+  opacity: 0;
+  color: color-mix(in srgb, var(--mantine-color-mihrab-9) 60%, transparent);
+}
+
+.rail:hover .label,
+.rail:focus-within .label {
+  opacity: 1;
+}
+
+.rail:hover .labelArabic,
+.rail:focus-within .labelArabic {
+  opacity: 0.55;
+}
+
+.navItem[data-active='true'] .labelArabic {
+  color: color-mix(in srgb, var(--mantine-color-mihrab-9) 85%, transparent);
 }
 
 .footer {
   margin-top: auto;
-  padding: 16px 14px 8px;
+  padding: 12px 8px 4px;
   font-size: 11px;
   color: color-mix(in srgb, var(--mantine-color-mihrab-9) 50%, transparent);
   border-top: 1px solid color-mix(in srgb, var(--mantine-color-mihrab-9) 8%, transparent);
+  white-space: nowrap;
+}
+
+.footerCollapsed {
+  display: block;
+}
+
+.footerExpanded {
+  display: none;
+}
+
+.rail:hover .footerCollapsed,
+.rail:focus-within .footerCollapsed {
+  display: none;
+}
+
+.rail:hover .footerExpanded,
+.rail:focus-within .footerExpanded {
+  display: block;
 }

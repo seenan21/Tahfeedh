@@ -1,15 +1,96 @@
-import { useEffect, useState } from 'react';
-import { Alert, Button, Group, Modal, NumberInput, SegmentedControl, Stack, Text, TextInput } from '@mantine/core';
-import type { TestCreateInput, TestType } from '@tahfeedh/shared';
+import { useEffect, useMemo, useState } from 'react';
+import {
+  Alert,
+  Anchor,
+  Button,
+  Group,
+  Modal,
+  NumberInput,
+  SegmentedControl,
+  Stack,
+  Text,
+  TextInput,
+} from '@mantine/core';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import type { MemorizationStatus, NextNewLesson, TestCreateInput, TestType } from '@tahfeedh/shared';
 import { apiFetch } from '../../api/client';
+import { supabase } from '../../lib/supabase';
 
 interface Props {
   opened: boolean;
   onClose: () => void;
   onCreated: (testId: string) => void;
+  studentId: string;
 }
 
-export function TestCreationModal({ opened, onClose, onCreated }: Props) {
+interface PageStatusRow {
+  page_number: number;
+  status: MemorizationStatus;
+}
+
+async function fetchPageStatuses(studentId: string): Promise<Map<number, MemorizationStatus>> {
+  const { data, error } = await supabase
+    .from('memorization_page')
+    .select('page_number, status')
+    .eq('student_id', studentId);
+  if (error) throw error;
+  const m = new Map<number, MemorizationStatus>();
+  for (const r of (data ?? []) as PageStatusRow[]) m.set(r.page_number, r.status);
+  return m;
+}
+
+async function fetchNextNewLesson(): Promise<NextNewLesson | null> {
+  const { data, error } = await supabase.rpc('next_new_lesson');
+  if (error) return null;
+  if (!data) return null;
+  // RPC may return a single row or an array depending on Supabase version.
+  const row = Array.isArray(data) ? data[0] : data;
+  if (!row) return null;
+  return {
+    page_number: row.page_number,
+    kind: row.kind,
+  };
+}
+
+function validateRange(
+  testType: TestType,
+  start: number,
+  end: number,
+  statuses: Map<number, MemorizationStatus>,
+): string | null {
+  if (!Number.isInteger(start) || !Number.isInteger(end)) return 'Page range must be whole numbers.';
+  if (start < 1 || end > 604) return 'Page range must be within 1–604.';
+  if (end < start) return 'End page must be ≥ start page.';
+
+  if (testType === 'newly_memorized') {
+    const blocked: number[] = [];
+    for (let p = start; p <= end; p++) {
+      const s = statuses.get(p);
+      if (s === 'memorized' || s === 'mastered') blocked.push(p);
+    }
+    if (blocked.length > 0) {
+      const list = blocked.length <= 5 ? blocked.join(', ') : `${blocked.slice(0, 5).join(', ')}, …`;
+      return `Newly-memorized tests must cover pages you haven't passed yet. Already memorized: ${list}.`;
+    }
+  } else {
+    // revision: pages must already be memorized or mastered.
+    const ineligible: number[] = [];
+    for (let p = start; p <= end; p++) {
+      const s = statuses.get(p);
+      if (s !== 'memorized' && s !== 'mastered') ineligible.push(p);
+    }
+    if (ineligible.length > 0) {
+      const list = ineligible.length <= 5
+        ? ineligible.join(', ')
+        : `${ineligible.slice(0, 5).join(', ')}, …`;
+      return `Revision tests must cover memorized pages. Not memorized yet: ${list}.`;
+    }
+  }
+  return null;
+}
+
+export function TestCreationModal({ opened, onClose, onCreated, studentId }: Props) {
+  const queryClient = useQueryClient();
   const [testType, setTestType] = useState<TestType>('newly_memorized');
   const [pageStart, setPageStart] = useState<number | string>(1);
   const [pageEnd, setPageEnd] = useState<number | string>(1);
@@ -17,21 +98,47 @@ export function TestCreationModal({ opened, onClose, onCreated }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
+  const { data: statuses } = useQuery({
+    queryKey: ['memorization_pages', studentId],
+    queryFn: () => fetchPageStatuses(studentId),
+    enabled: opened,
+    staleTime: 30_000,
+  });
+
+  const { data: nextLesson } = useQuery({
+    queryKey: ['next_new_lesson', studentId],
+    queryFn: fetchNextNewLesson,
+    enabled: opened,
+    staleTime: 30_000,
+  });
+
   useEffect(() => {
-    if (opened) {
-      setTestType('newly_memorized');
-      setPageStart(1);
-      setPageEnd(1);
-      setWitness('');
-      setError(null);
-    }
-  }, [opened]);
+    if (!opened) return;
+    setTestType('newly_memorized');
+    setWitness('');
+    setError(null);
+    // Pre-fill start/end with the next new-lesson page if known.
+    const seed = nextLesson?.page_number ?? 1;
+    setPageStart(seed);
+    setPageEnd(seed);
+  }, [opened, nextLesson?.page_number]);
+
+  const start = Number(pageStart);
+  const end = Number(pageEnd);
+  const liveError = useMemo(() => {
+    if (!statuses) return null;
+    if (!Number.isInteger(start) || !Number.isInteger(end)) return null;
+    return validateRange(testType, start, end, statuses);
+  }, [testType, start, end, statuses]);
 
   const handleSubmit = async () => {
-    const start = Number(pageStart);
-    const end = Number(pageEnd);
-    if (!Number.isInteger(start) || !Number.isInteger(end) || start < 1 || end < start || end > 604) {
-      setError('Page range must be 1–604 and end ≥ start.');
+    if (!statuses) {
+      setError('Page status still loading — try again in a moment.');
+      return;
+    }
+    const rangeErr = validateRange(testType, start, end, statuses);
+    if (rangeErr) {
+      setError(rangeErr);
       return;
     }
     if (!witness.trim()) {
@@ -51,11 +158,14 @@ export function TestCreationModal({ opened, onClose, onCreated }: Props) {
         method: 'POST',
         body: JSON.stringify(body),
       });
-      onCreated(res.id);
+      // Invalidate the in-progress test cache so the parent route re-fetches
+      // if the user navigates back.
+      queryClient.invalidateQueries({ queryKey: ['tests_recent', studentId] });
+      setSubmitting(false);
       onClose();
+      setTimeout(() => onCreated(res.id), 0);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create test');
-    } finally {
       setSubmitting(false);
     }
   };
@@ -82,7 +192,31 @@ export function TestCreationModal({ opened, onClose, onCreated }: Props) {
               { label: 'Revision', value: 'revision' },
             ]}
           />
+          <Text size="xs" c="dimmed">
+            {testType === 'newly_memorized'
+              ? 'Pick a contiguous page range that you haven’t passed yet. A strong pass promotes the page(s) from in-progress to memorized.'
+              : 'Pick a contiguous page range you’ve already memorized. Used to keep pages fresh and surface drift.'}
+          </Text>
         </Stack>
+
+        {testType === 'newly_memorized' && nextLesson?.page_number && (
+          <Alert color="sage" variant="light" radius="md">
+            <Group justify="space-between">
+              <Text size="xs">
+                Next new lesson: page {nextLesson.page_number} ({nextLesson.kind})
+              </Text>
+              <Anchor
+                size="xs"
+                onClick={() => {
+                  setPageStart(nextLesson.page_number);
+                  setPageEnd(nextLesson.page_number);
+                }}
+              >
+                Use this →
+              </Anchor>
+            </Group>
+          </Alert>
+        )}
 
         <Group grow>
           <NumberInput
@@ -90,7 +224,11 @@ export function TestCreationModal({ opened, onClose, onCreated }: Props) {
             value={pageStart}
             min={1}
             max={604}
-            onChange={setPageStart}
+            onChange={(v) => {
+              setPageStart(v);
+              const n = typeof v === 'number' ? v : Number(v);
+              if (Number.isInteger(n) && Number(pageEnd) < n) setPageEnd(n);
+            }}
           />
           <NumberInput
             label="End page"
@@ -108,9 +246,9 @@ export function TestCreationModal({ opened, onClose, onCreated }: Props) {
           onChange={(e) => setWitness(e.currentTarget.value)}
         />
 
-        {error && (
+        {(error || liveError) && (
           <Alert color="brick" variant="light">
-            {error}
+            {error ?? liveError}
           </Alert>
         )}
 
@@ -118,7 +256,12 @@ export function TestCreationModal({ opened, onClose, onCreated }: Props) {
           <Button variant="subtle" onClick={onClose} disabled={submitting}>
             Cancel
           </Button>
-          <Button onClick={handleSubmit} loading={submitting} color="sage">
+          <Button
+            onClick={handleSubmit}
+            loading={submitting}
+            color="sage"
+            disabled={!!liveError}
+          >
             Begin
           </Button>
         </Group>

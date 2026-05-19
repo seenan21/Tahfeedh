@@ -2,6 +2,22 @@
 
 ## [Unreleased]
 
+### Added — Phase E (M5) — Today's Session machine + simple revision queue
+- **Migration `0017_daily_session.sql` (applied).** New `daily_session` table — one row per `(student_id, session_date, session_index)` holding `new_lesson_pages int[]` + `revision_pages int[]`. RLS: students read their own rows; teachers via `is_my_student`. All inserts go through SECURITY DEFINER RPCs (ADR 0020).
+- **`today_session(uuid)` SQL RPC** — the Today read entry point. Returns the latest session row for `current_date`, auto-creating `session_index = 1` on first call of a new calendar day. Joins page-typed completed-test ranges to attach per-page `attempted` flags (any closed test today whose range covers the page checks the row — pass or fail both count). Granted `authenticated`.
+- **`load_next_session(uuid)` SQL RPC** — explicit "Load next session early" CTA (DESIGN.md §7.7). Computes a fresh plan and inserts at `session_index = max + 1` for `current_date`. Granted `authenticated`.
+- **`_compute_session_plan(uuid)` internal SQL helper** — runs both queues for one session insert. Queue 1 mirrors the direction-aware frontier walk from `next_new_lesson` (`0015_hifz_direction.sql`). Revision queue is the simplest viable rule: memorized pages sorted by stalest `ayah_review_state.last_reviewed_at`, capped at `student_settings.pages_per_session_revision`. Excludes the new-lesson page from the revision set. Service-role only.
+- **`apps/web/src/today/SessionPlanCard.tsx`** — replaces the old `NewLessonCard` + revision `EmptySlotCard`. Single card fed by the `today_session` RPC. Renders new-lesson section, revision section, attempted counter ("N of M attempted"), and either a celebration block + "Load next session" button (when `all_attempted`) or the standard footer caption. `useMutation` calls `load_next_session` and seeds the next session into the query cache.
+- **`apps/web/src/today/PlanRow.tsx`** — new reusable row component used for both new-lesson and revision rows. Strikes through the page title when attempted, shows an "Attempted today" pill, dims the row, and switches the "Open mushaf" button to subtle variant.
+- **Cache invalidation** — `useTestSession.finishTest` now invalidates `['today_session', studentId]` so attempted-checkmarks refresh after a test ends (`apps/web/src/features/live-test/useTestSession.ts`).
+- **Shared types** — `TodaySession`, `TodaySessionRow` added to `@tahfeedh/shared`.
+- **ADR 0020** (`decisions/0020-frozen-daily-session.md`) — captures the frozen-plan decision, the anti-gaming rationale, and the deferred Queue 2/3 priority math.
+
+### Changed — M5
+- **DESIGN.md §7.1 patched** — replaced "computed on read each time the student opens the Today view" with the persisted-plan model. The completion-state derivation principle is preserved; only the plan-storage rule changed. Cross-references ADR 0020.
+- **Today route** (`apps/web/src/routes/_authed.today.tsx`) — Plan card now renders a single `SessionPlanCard`; the inline Divider scaffolding moved inside the card.
+- **Removed:** `apps/web/src/today/NewLessonCard.tsx` — superseded by `SessionPlanCard` + `PlanRow`. The standalone `next_new_lesson` query stays in use only inside `_authed.mushaf.tsx` for the reader's initial-page bootstrap.
+
 ### Added — Phase D (M4) — Live tests + error logging E2E
 - **Migration `0016_post_test_pipeline.sql` (applied).** `submit_test(uuid, jsonb)` SECURITY DEFINER function — transactionally closes a test, touches `ayah_review_state.last_reviewed_at` for every covered ayah, upserts `error_location_stats` from the streamed `error_log` rows, decays untouched stats (clears at counter ≥ 3 per DESIGN.md §12 / §13.4), promotes `memorization_page.status` from `in_progress → memorized` on `strong_pass` for `newly_memorized` tests, and returns `{ testId, new[], recurring[], cleared[] }`. Granted to `service_role` only (ADR 0017). M5 work (mastery promotion, fail-downgrade, recent-revision stage machine) is documented inline with `-- TODO M5` markers.
 - **Express `/api/tests` router** (`apps/server/src/routes/tests.ts`) with three endpoints — `POST /create`, `POST /:id/error` (streaming per-tap inserts, ADR 0018), `POST /:id/finish` (resolves ranges via `apps/server/src/pipelines/post-test/resolve.ts`, calls `submit_test` RPC). All three verify the Supabase bearer + ownership; the create endpoint surfaces the unique-partial-index conflict as 409.
@@ -16,6 +32,7 @@
   - `useTestSession.ts` — hook holding `errors[]` + `logError()` + `finishTest()`.
   - `useTestPages.ts` — derives the candidate page list from a test's ranges (mirrors `resolveTestRanges` for the client).
 - **Tests sidebar route updated** (`apps/web/src/routes/_authed.tests.tsx`): Begin-Test CTA + trust nudge; resumes an in-progress test if one exists; shows a single "Most recent test" line link to Today. Full history list intentionally deferred (cut per Phase D scope decision).
+- **Tests landing — recent history surface (ADR 0020).** Replaces the single "Most recent test" breadcrumb on `_authed.tests.index.tsx` with: (a) a 30-day activity sparkline (inline SVG, no chart-lib dep) showing tests-per-day with hover tooltips, and (b) a list of the last 15 completed tests as Card rows — type badge, range summary, relative date, rating badge — each linking to `/tests/$testId`. Queries hit the existing `test_student_ended_idx` partial index. A read-only test-detail view is a follow-up (rows currently land on `LiveTestRoute`'s "already completed" alert).
 - **Live-test route file** `apps/web/src/routes/_authed.tests.$testId.tsx`.
 - **Overlay computation** (`apps/web/src/mushaf/getOverlayMarkers.ts`, ADR 0019). `getOverlayMarkers(pageNumber, stats, mode, quranIndex)` collapses `error_location_stats` rows to one marker per visual location; merges by max-intensity for color and total occurrence_count for the badge. `getErrorsAtLocation` helper for the future error-detail modal. Three modes wired: `simple` (red marker), `heatmap` (5-band ramp), `colored` (per error type).
 - **MushafPage marker rendering** — `overlays` prop now accepts `ErrorLocationStatsRow[]`; words with markers get a tinted background + bottom underline (via CSS custom property `--marker-color`) and an optional count badge (`5+` collapse rule per ADR 0011).
@@ -24,6 +41,7 @@
 - **ADR 0017** — Post-test pipeline as one fat SQL function.
 - **ADR 0018** — Streaming error inserts (per-tap POST).
 - **ADR 0019** — Overlay computation client-side from cached `error_location_stats`.
+- **ADR 0020** — Tests landing shows recent history (sparkline + last 15 list).
 
 ### Fixed — Phase D foundation
 - **Mushaf rendering: words now read right-to-left (ADR 0016).** `apps/web/src/mushaf/MushafPage.module.css` removed `flex-direction: row-reverse` from `.line` — combined with `.mushaf-page { direction: rtl }` it was a BiDi double-reversal that rendered LTR. Filled lines now justify edge-to-edge via inline `justify-content: space-between` (set per line by `LineRow`); centered lines (surah_name, basmallah, `is_centered`) keep `justify-content: center`. Added `unicode-bidi: isolate` + `letter-spacing: 0` to `.mushaf-word` so the renderer behaves correctly when embedded in an LTR pane (the new live-test layout). `MushafPage.tsx` preloads the current page's QPC V2 font via an injected `<link rel="preload">` to cut the FOIT/FOUT swap flash.

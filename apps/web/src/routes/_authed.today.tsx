@@ -1,11 +1,10 @@
 import { createFileRoute, redirect } from '@tanstack/react-router';
-import { Card, Divider, Group, Stack, Text } from '@mantine/core';
-import { BookOpenText, Moon, Repeat2, Sun, Sunset } from 'lucide-react';
+import { Card, Group, Stack, Text } from '@mantine/core';
+import { Moon, Sun, Sunset } from 'lucide-react';
 import { homeRouteForRole } from '../lib/auth';
 import { StreakBadge } from '../today/StreakBadge';
 import { JuzProgressBar } from '../today/JuzProgressBar';
-import { EmptySlotCard } from '../today/EmptySlotCard';
-import { NewLessonCard } from '../today/NewLessonCard';
+import { SessionPlanCard } from '../today/SessionPlanCard';
 
 export const Route = createFileRoute('/_authed/today')({
   beforeLoad: ({ context }) => {
@@ -75,53 +74,7 @@ function TodayPage() {
 
       {/* Plan card */}
       <Card padding="xl" radius="xl" shadow="xl">
-        <Stack gap="lg">
-          <Group justify="space-between" align="center">
-            <Stack gap={2}>
-              <Text size="xs" tt="uppercase" c="dimmed" fw={700} lts={0.8}>
-                Today's plan
-              </Text>
-              <Text fw={600} size="lg">Your session at a glance</Text>
-            </Stack>
-            <Text size="xs" c="dimmed">0 of 0 covered today</Text>
-          </Group>
-
-          <Divider
-            label={
-              <Group gap={6}>
-                <BookOpenText size={12} />
-                <Text size="xs" fw={700} tt="uppercase" lts={0.6} c="dimmed">
-                  New lesson
-                </Text>
-              </Group>
-            }
-            labelPosition="left"
-          />
-          <NewLessonCard studentId={user.id} />
-
-          <Divider
-            label={
-              <Group gap={6}>
-                <Repeat2 size={12} />
-                <Text size="xs" fw={700} tt="uppercase" lts={0.6} c="dimmed">
-                  Revision queue
-                </Text>
-              </Group>
-            }
-            labelPosition="left"
-          />
-          <EmptySlotCard
-            title="Today's revision pages"
-            icon={Repeat2}
-            helper="The algorithm picks revision pages from your hifz once the live test flow lands in Phase D."
-            accent="honey"
-            badge="Phase D · M5"
-          />
-
-          <Text size="xs" c="dimmed" ta="center" mt="sm">
-            Tests are the only way pages move through the queues — start one whenever a witness is ready.
-          </Text>
-        </Stack>
+        <SessionPlanCard studentId={user.id} />
       </Card>
     </Stack>
   );

@@ -79,6 +79,7 @@ export function useTestSession(testId: string, studentId: string) {
         // error_location_stats. Invalidate everything that consumes them so
         // the next Today / Mushaf load sees fresh data.
         await Promise.all([
+          queryClient.invalidateQueries({ queryKey: ['today_session', studentId] }),
           queryClient.invalidateQueries({ queryKey: ['next_new_lesson', studentId] }),
           queryClient.invalidateQueries({ queryKey: ['memorization_pages', studentId] }),
           queryClient.invalidateQueries({ queryKey: ['error_location_stats', studentId] }),

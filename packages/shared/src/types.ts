@@ -92,6 +92,24 @@ export interface NextNewLesson {
   kind: NextNewLessonKind;
 }
 
+// Today's frozen daily session (M5, ADR 0020). Returned by the `today_session`
+// SQL RPC and by `load_next_session`. The plan itself is persisted in
+// daily_session; the `attempted` flag is derived at read time from completed
+// tests today whose page-typed ranges include the row's page (pass or fail).
+export interface TodaySessionRow {
+  page_number: number;
+  attempted: boolean;
+}
+
+export interface TodaySession {
+  session_id: string;
+  session_date: string;
+  session_index: number;
+  new_lesson_pages: TodaySessionRow[];
+  revision_pages: TodaySessionRow[];
+  all_attempted: boolean;
+}
+
 // Hifz direction preference (ADR 0014). 'forward' = Baqarah-first (page 1 → 604),
 // 'backward' = Juz-Amma-first (page 604 → 1). Used by next_new_lesson and the
 // post-test pipeline (Phase D / M5) when picking the next page to suggest.

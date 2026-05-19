@@ -6,7 +6,7 @@
 
 ---
 
-## Where we are (snapshot — 2026-05-19, Phase D shipping)
+## Where we are (snapshot — 2026-05-19, Phase E / M5 partial — Today's Session machine landed)
 
 ### Shipped
 
@@ -67,10 +67,19 @@
 **Still open (deferred to later phases):**
 - Full Tests history list — cut per scope decision; current Tests route shows Begin CTA + most-recent link only. (M6+)
 - Mastery promotion (`memorized → mastered`), fail-downgrade, recent-revision stage machine — M5.
-- **Today's-session machine** — discrete daily session rows with attempted-checkmarks, "Load next session" CTA, frozen-per-day semantics. Current Phase D regression: `NewLessonCard` shows "every page memorized" after one page is promoted because we only have Queue 1. Full breakdown in `notes-for-future.md` → "Today's Session machine (M5)".
+- **Today's-session machine** — ✅ landed 2026-05-19 (see Phase E partial above). Regression fixed.
+
+### Phase E partial (M5) — Today's Session machine ⬅️ **JUST LANDED (2026-05-19)**
+
+- Migration 0017 applied — `daily_session` table + `today_session` / `load_next_session` / `_compute_session_plan` RPCs (ADR 0020). The day's plan is now a persisted row, not a computed-on-read derivation.
+- `SessionPlanCard` + `PlanRow` replace the old `NewLessonCard` + revision `EmptySlotCard`. Today's card renders new-lesson + revision rows with per-row attempted checkmarks, an "N of M attempted" counter, and a celebration block + "Load next session" CTA when `all_attempted`.
+- DESIGN.md §7.1 patched (ADR 0020 supersedes the "computed on read" line). Sessions are stored; only completion-state stays derived.
+- Revision queue is the simplest viable rule for the hackathon — memorized pages by stalest `ayah_review_state.last_reviewed_at`. Full Queue 2 stage machine + Queue 3 priority math still owed (`-- TODO M5+` in `_compute_session_plan`).
+- Mastery promotion + fail-downgrade still owed in `submit_test` (`-- TODO M5+` from 0016).
 
 ### Latest ADRs (most relevant first for resuming)
 
+- **0020** — Today's session is frozen in `daily_session`, not recomputed on read. Supersedes DESIGN.md §7.1.
 - **0019** — Overlay computation client-side from cached `error_location_stats`.
 - **0018** — Streaming error inserts (per-tap POST, not batched at finish).
 - **0017** — Post-test pipeline as one SECURITY DEFINER SQL function.
@@ -141,7 +150,7 @@ This is the differentiator phase. Status changes happen *here* — the post-test
 
 ## Phase E — Remaining milestones
 
-- **M5** — Algorithm full (Queues 2 + 3, session completion, streak ticks; revision bucket math per §7.3). **Includes the Today's-session machine** — a frozen `daily_session` row per (student, date) with new-lesson + revision rows, attempted-checkmarks, and a "Load next session" CTA. Fixes the current Phase D regression where `NewLessonCard` falsely shows "every page is in your mushaf" after a single page is promoted. See `notes-for-future.md` → "Today's Session machine (M5)" for the full breakdown.
+- **M5 (partial done)** — frozen `daily_session` + simple revision shipped 2026-05-19 (ADR 0020). Still owed: full Queue 2 stage machine + Queue 3 priority math (§7.2-7.3), mastery promotion + fail-downgrade in `submit_test`, streak coverage check against the new attempted-flag.
 - **M6** — Teacher dashboard + groups + invite codes.
 - **M7** — Timeline view, error detail modal, **Edit Memorization** (the deferred Settings flow — see `notes-for-future.md`), mobile sweep, PWA.
 - **M8** — QF User APIs (Bookmarks + Goals OAuth flow).

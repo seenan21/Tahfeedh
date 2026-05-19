@@ -433,9 +433,11 @@ A **session** is the day's plan for a student:
 - N pages of new material to memorize (default: 1)
 - M pages of revision (default: 5)
 
-The plan is computed on read each time the student opens the Today view. Tests are independent events; they may or may not contribute to completing today's session. A session is **complete** when every required page has had all its ayahs tested today (across any closed tests).
+The plan is computed once per session and **persisted** in `daily_session` (ADR 0020). The first call to the `today_session` RPC on a new calendar day runs the queues, writes the row, and returns it; subsequent reads return the same row. Reloading Today never reshuffles the day's pages — anti-gaming. A new session loads automatically on the next calendar day; an explicit "Load next session" CTA can also insert an additional `session_index` for the same date (DESIGN.md §7.7).
 
-**Critical:** Tests do not "belong to" sessions. A test that covers a page outside today's required set is still valid — its data updates state for future sessions. Session completion is a derived check, not a stored flag.
+Tests are still independent events; they may or may not contribute to completing today's session. A session is **complete** when every page in `new_lesson_pages ∪ revision_pages` has been attempted in a closed test today (pass or fail — both count as "attempted"). The completion flag (`all_attempted`) is **derived** at read time from the test/test_range tables; only the plan itself is stored.
+
+**Critical:** Tests do not "belong to" sessions. A test that covers a page outside today's required set is still valid — its data updates state for future sessions.
 
 ### 7.2 The three queues
 

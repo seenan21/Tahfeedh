@@ -8,9 +8,10 @@ TanStack file-based routes. **Convention:** files starting with `_authed.` live 
 |---|---|---|
 | `__root.tsx` | Bare provider root: query client + Mantine provider, just renders `<Outlet />` | Adding a router-wide provider |
 | `_authed.tsx` | Pathless layout: auth + onboarding gate (`beforeLoad`), test-lock guard that redirects to `/tests/$testId` whenever an in-progress test exists, AppShell with 64px icon-rail navbar + glassy header, "Self-test in session" header banner, logout auto-abandons any in-progress test (ADRs 0004, 0005, 0010) | Changing auth gating, the test lock, the self-test banner, or shell config |
-| `_authed.today.tsx` | Student Today view: hero strip, 30-cell juz progress, plan card with empty slots | Touching the Today layout (DESIGN.md §14.4) |
-| `_authed.tests.index.tsx` | Tests landing — Begin-Test CTA + trust nudge, Resume button when an in-progress test exists, "Most recent test" link | Building the test landing UX |
-| `_authed.tests.$testId.tsx` | Live-test route — renders `<LiveTestRoute>` from `features/live-test/` | Touching live-test routing |
+| `_authed.today.tsx` | Student Today view: hero strip, 30-cell juz progress, `<SessionPlanCard>` plan (frozen `daily_session`, ADR 0020) | Touching the Today layout (DESIGN.md §14.4) |
+| `_authed.tests.index.tsx` | Tests landing — Begin-Test/Resume CTA, 30-day activity sparkline (inline SVG), last 15 completed tests as Card rows linking to `/tests/$testId/recap` (ADR 0021) | Building the test landing UX or the recent-history surface |
+| `_authed.tests.$testId.tsx` | Live-test route — renders `<LiveTestRoute>` from `features/live-test/`. Completed tests redirect to `recap` from inside `LiveTestRoute` | Touching live-test routing |
+| `_authed.tests.$testId.recap.tsx` | Read-only recap route (ADR 0022) — renders `<TestRecapView>` for completed/abandoned tests. Linked from the history list and from the live-test redirect | Touching the recap routing |
 | `_authed.timeline.tsx` | Timeline empty state (M7 placeholder) | Building the timeline view |
 | `_authed.mushaf.tsx` | My Mushaf — reader-first: SegmentedControl toggle (Reader / Tracker), reader-mode toolbar (prev / next / jump-to-page / "Show errors" Switch), inline two-column layout (MushafPage + sticky PageDetailsPanel), Tracker view uses collapsible `MushafGrid`. Fetches `error_location_stats` and passes as overlays (heatmap on/off, persisted in localStorage). Last-selected page also in localStorage; initial page comes from cached `next_new_lesson` (ADRs 0011, 0015, 0019) | Touching the mushaf surface, overlay rendering, the reader/tracker toggle, or the side panel |
 | `_authed.goals.tsx` | Goals empty state (M8 placeholder) | Building goals UI / QF Goals API integration |

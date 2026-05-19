@@ -13,5 +13,5 @@
 | `memorization/` | Pure expansion logic — pageNumber → ayahs-on-page, isAyahOnPage validator. Reserved for the Phase D post-test pipeline and the future Edit-Memorization flow (ADR 0015) | Touching page → ayah expansion or wiring the post-test pipeline |
 | `qf/` | Quran Foundation API client (token cache + Content API fetchers) | Calling QF endpoints from the server |
 | `data/` | Generated `quran-index.json` copy for server-side range expansion (ADR 0007) | Don't hand-edit. Regenerate via `npm run build:quran-index` |
-| `algorithm/` | **Stub** — session plan / queue logic lands in M5 | Building the algorithm in M5 |
+| `algorithm/` | **Empty stub.** M5 session-plan logic landed in SQL instead — see `_compute_session_plan` in migration `0017_daily_session.sql`. Reserved for any future TS-side algorithm code (e.g. Queue 2 stage machine if it grows beyond SQL) | Building TS-side algorithm code; otherwise skip — the algorithm lives in Postgres |
 | `pipelines/` | Server-side transactional pipelines. Currently `post-test/` (ADR 0017) | Adding a new transactional flow, touching the post-test pipeline |

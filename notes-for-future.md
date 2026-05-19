@@ -33,6 +33,34 @@ Deferred decisions and scope cuts made during the hackathon MVP build. Each entr
 
 ---
 
+## Today's Session machine (M5)
+
+**Status:** Not yet built. Phase D ships only Queue 1 (`next_new_lesson` RPC) and the new-lesson card on Today; the rest of the session model is M5.
+
+**Bug observed in Phase D:** After a `strong_pass` on the only in-progress page, `NewLessonCard` falls back to "No new lesson — every page is in your mushaf, the full Quran is memorized." That message is wrong when the student has only memorized a handful of pages. Today's view should instead show:
+- The new-lesson row for today **with a check mark** once it's been tested today (pass or fail — both count as "attempted today").
+- The revision rows for today, each with the same checkmark behavior once attempted.
+- A "Today's session complete" state once every row is attempted.
+- A "Load next session" button (or auto-load on next login / new day) that pulls the *next* session: next unmemorized page for new-lesson + next priority pages from the revision queue per the algorithm (DESIGN.md §7).
+
+**What "today's session" means** (per the user's pedagogy):
+- A session is a discrete unit, NOT a live stream of "what's next right now". Once loaded, the session's contents are frozen for the day.
+- Rows complete when **attempted** — a `fail` rating still marks the row complete because the student tried; the page stays `in_progress`, and the *next* session re-includes that same new-lesson page until they pass.
+- The next session is computed from the algorithm at session load time, not at test completion.
+
+**What's needed (M5 scope):**
+- New table: `daily_session` (student_id, date, status, new_lesson_pages[], revision_pages[], …) — the frozen session for that day.
+- Compute function: `compute_next_session(uuid) returns daily_session_row` — runs the full algorithm (Queues 1/2/3, frontier walk + revision priority math) and inserts a new `daily_session` row.
+- New Today RPC: `today_session(uuid) returns { session, completed_pages[] }` — returns today's session + which pages have been tested today (joined with `test`).
+- UI: replace `NewLessonCard`'s "every page" fallback with the real session/completion view. Add checkmarks on each row that has at least one `test.ended_at >= today_start` for the page.
+- "Load next session" CTA when today's session is fully attempted AND it's still today (otherwise auto-load on next visit).
+
+**Cost estimate:** 1–2 days. The algorithm and the session table are the bulk; UI follows the existing slot-card patterns on Today.
+
+**Anti-pattern to avoid:** Do NOT recompute `next_new_lesson` on every Today render. The session is frozen for the day; recomputing would let a student game it by completing/refreshing.
+
+---
+
 ## Edit Memorization / Recalibrate (post-M8)
 
 **Status:** Deferred. ADR 0015 establishes that post-onboarding, `memorization_page.status` only changes via the post-test pipeline. No per-page "mark memorized" UI is exposed.

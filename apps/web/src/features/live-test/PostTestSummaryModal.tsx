@@ -7,6 +7,16 @@ interface Props {
   opened: boolean;
   onClose: () => void;
   summary: PostTestSummary | null;
+  /** Duration in seconds (computed from started_at → ended_at). */
+  durationSec?: number | null;
+}
+
+function formatDuration(totalSec: number): string {
+  const h = Math.floor(totalSec / 3600);
+  const m = Math.floor((totalSec % 3600) / 60);
+  const s = totalSec % 60;
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return h > 0 ? `${h}:${pad(m)}:${pad(s)}` : `${pad(m)}:${pad(s)}`;
 }
 
 function SummaryRow({ r }: { r: PostTestSummaryRow }) {
@@ -70,7 +80,7 @@ function Section({
   );
 }
 
-export function PostTestSummaryModal({ opened, onClose, summary }: Props) {
+export function PostTestSummaryModal({ opened, onClose, summary, durationSec }: Props) {
   if (!summary) return null;
   return (
     <Modal
@@ -86,6 +96,16 @@ export function PostTestSummaryModal({ opened, onClose, summary }: Props) {
       centered
     >
       <Stack gap="md">
+        {durationSec != null && (
+          <Group gap={6} align="center">
+            <Text size="xs" tt="uppercase" c="dimmed" fw={700} lts={0.6}>
+              Duration
+            </Text>
+            <Badge variant="light" size="lg" style={{ fontVariantNumeric: 'tabular-nums' }}>
+              {formatDuration(durationSec)}
+            </Badge>
+          </Group>
+        )}
         <Section
           label="New errors"
           icon={<Sparkles size={14} color="var(--mantine-color-brick-7)" />}

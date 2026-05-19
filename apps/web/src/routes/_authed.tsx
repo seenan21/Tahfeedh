@@ -11,6 +11,7 @@ import {
   Text,
   UnstyledButton,
 } from '@mantine/core';
+import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { AlertCircle, ChevronDown, LogOut, Settings as SettingsIcon, User } from 'lucide-react';
 import { getCurrentUser, signOut } from '../lib/auth';
@@ -21,17 +22,35 @@ interface InProgressTestRow {
   id: string;
   test_type: 'newly_memorized' | 'revision';
   guest_tester_name: string | null;
+  started_at: string;
 }
 
 async function fetchInProgressTest(studentId: string): Promise<InProgressTestRow | null> {
   const { data, error } = await supabase
     .from('test')
-    .select('id, test_type, guest_tester_name')
+    .select('id, test_type, guest_tester_name, started_at')
     .eq('student_id', studentId)
     .eq('status', 'in_progress')
     .maybeSingle();
   if (error) return null;
   return (data as InProgressTestRow | null) ?? null;
+}
+
+function useElapsed(startIso: string | undefined): string {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!startIso) return;
+    const id = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(id);
+  }, [startIso]);
+  if (!startIso) return '';
+  const startMs = new Date(startIso).getTime();
+  const totalSec = Math.max(0, Math.floor((now - startMs) / 1000));
+  const h = Math.floor(totalSec / 3600);
+  const m = Math.floor((totalSec % 3600) / 60);
+  const s = totalSec % 60;
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return h > 0 ? `${h}:${pad(m)}:${pad(s)}` : `${pad(m)}:${pad(s)}`;
 }
 
 export const Route = createFileRoute('/_authed')({
@@ -88,6 +107,8 @@ function AuthedLayout() {
     refetchInterval: 15_000,
   });
 
+  const elapsed = useElapsed(inProgressTest?.started_at);
+
   async function handleSignOut() {
     // Auto-abandon any in-progress test before signing out (ADR follow-up to
     // 0004): pedagogically a test must be witnessed; an unattended in-progress
@@ -135,44 +156,53 @@ function AuthedLayout() {
       }}
     >
       <AppShell.Header>
-        <Group h="100%" px="xl" justify="space-between">
+        <Group h="100%" px="xl" justify="space-between" style={{ position: 'relative' }}>
           <Group gap="xs">
             <Badge variant="dot" color="sage.7" size="sm" radius="sm">
               {user.role === 'student' ? 'Hifz student' : 'Hifz teacher'}
             </Badge>
-            {inProgressTest && (
-              <Paper
-                px={12}
-                py={6}
-                radius="xl"
+          </Group>
+
+          {inProgressTest && (
+            <Paper
+              px={14}
+              py={6}
+              radius="xl"
+              style={{
+                position: 'absolute',
+                left: '50%',
+                top: '50%',
+                transform: 'translate(-50%, -50%)',
+                background:
+                  'linear-gradient(90deg, var(--mantine-color-brick-7), var(--mantine-color-brick-5))',
+                color: 'var(--mantine-color-parchment-0)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 10,
+                boxShadow: '0 2px 10px rgba(127, 29, 29, 0.4)',
+                pointerEvents: 'none',
+                zIndex: 1,
+              }}
+            >
+              <AlertCircle size={14} strokeWidth={2.4} />
+              <Text size="xs" fw={700} c="parchment.0" style={{ letterSpacing: 0.4 }}>
+                Self-test in session
+                {inProgressTest.guest_tester_name ? ` · ${inProgressTest.guest_tester_name}` : ''}
+              </Text>
+              <Text
+                size="xs"
+                fw={700}
+                c="parchment.0"
                 style={{
-                  background: 'linear-gradient(90deg, var(--mantine-color-brick-7), var(--mantine-color-brick-5))',
-                  color: 'var(--mantine-color-parchment-0)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 8,
-                  boxShadow: '0 1px 4px rgba(127, 29, 29, 0.4)',
+                  fontVariantNumeric: 'tabular-nums',
+                  paddingInlineStart: 8,
+                  borderInlineStart: '1px solid rgba(255,255,255,0.35)',
                 }}
               >
-                <AlertCircle size={14} strokeWidth={2.4} />
-                <Text size="xs" fw={700} c="parchment.0">
-                  Self-test in session
-                  {inProgressTest.guest_tester_name ? ` · ${inProgressTest.guest_tester_name}` : ''}
-                </Text>
-                <Button
-                  size="compact-xs"
-                  variant="white"
-                  color="brick"
-                  ml={6}
-                  onClick={() =>
-                    navigate({ to: '/tests/$testId', params: { testId: inProgressTest.id } })
-                  }
-                >
-                  Return to test
-                </Button>
-              </Paper>
-            )}
-          </Group>
+                {elapsed}
+              </Text>
+            </Paper>
+          )}
 
           <Menu position="bottom-end" withArrow shadow="lg" width={240} offset={8}>
             <Menu.Target>

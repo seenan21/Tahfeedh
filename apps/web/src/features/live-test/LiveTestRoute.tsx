@@ -18,6 +18,7 @@ interface TestRow {
   ranges: TestRange[];
   test_mode: 'enrolled_teacher' | 'guest_teacher';
   guest_tester_name: string | null;
+  started_at: string;
 }
 
 function rangeLabel(ranges: TestRange[]): string {
@@ -56,6 +57,7 @@ export function LiveTestRoute() {
   >(null);
   const [summary, setSummary] = useState<PostTestSummary | null>(null);
   const [summaryOpen, setSummaryOpen] = useState(false);
+  const [finishedDuration, setFinishedDuration] = useState<number | null>(null);
 
   const session = useTestSession(testId, user.id);
 
@@ -64,7 +66,7 @@ export function LiveTestRoute() {
     setLoadError(null);
     supabase
       .from('test')
-      .select('id, test_type, status, ranges, test_mode, guest_tester_name')
+      .select('id, test_type, status, ranges, test_mode, guest_tester_name, started_at')
       .eq('id', testId)
       .single()
       .then(({ data, error }) => {
@@ -93,6 +95,9 @@ export function LiveTestRoute() {
 
   const handleEndTest = async (rating: import('@tahfeedh/shared').TestRating, notes?: string) => {
     const s = await session.finishTest(rating, notes);
+    if (test?.started_at) {
+      setFinishedDuration(Math.floor((Date.now() - new Date(test.started_at).getTime()) / 1000));
+    }
     setSummary(s);
     setSummaryOpen(true);
   };
@@ -228,6 +233,7 @@ export function LiveTestRoute() {
         opened={summaryOpen}
         onClose={handleSummaryClose}
         summary={summary}
+        durationSec={finishedDuration}
       />
     </Container>
   );

@@ -124,7 +124,7 @@ This is the differentiator phase. Status changes happen *here* — the post-test
 
 ## Phase E — Remaining milestones
 
-- **M5** — Algorithm full (Queues 2 + 3, session completion, streak ticks; revision bucket math per §7.3).
+- **M5** — Algorithm full (Queues 2 + 3, session completion, streak ticks; revision bucket math per §7.3). **Includes the Today's-session machine** — a frozen `daily_session` row per (student, date) with new-lesson + revision rows, attempted-checkmarks, and a "Load next session" CTA. Fixes the current Phase D regression where `NewLessonCard` falsely shows "every page is in your mushaf" after a single page is promoted. See `notes-for-future.md` → "Today's Session machine (M5)" for the full breakdown.
 - **M6** — Teacher dashboard + groups + invite codes.
 - **M7** — Timeline view, error detail modal, **Edit Memorization** (the deferred Settings flow — see `notes-for-future.md`), mobile sweep, PWA.
 - **M8** — QF User APIs (Bookmarks + Goals OAuth flow).

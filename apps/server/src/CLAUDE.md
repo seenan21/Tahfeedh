@@ -14,4 +14,4 @@
 | `qf/` | Quran Foundation API client (token cache + Content API fetchers) | Calling QF endpoints from the server |
 | `data/` | Generated `quran-index.json` copy for server-side range expansion (ADR 0007) | Don't hand-edit. Regenerate via `npm run build:quran-index` |
 | `algorithm/` | **Stub** — session plan / queue logic lands in M5 | Building the algorithm in M5 |
-| `pipelines/` | **Stub** — post-test pipeline lands in Phase D / M4 | Building the post-test transaction in Phase D |
+| `pipelines/` | Server-side transactional pipelines. Currently `post-test/` (ADR 0017) | Adding a new transactional flow, touching the post-test pipeline |

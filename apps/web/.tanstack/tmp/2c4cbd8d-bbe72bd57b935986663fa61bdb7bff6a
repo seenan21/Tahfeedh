@@ -16,12 +16,12 @@ import { Route as AuthedRouteImport } from './routes/_authed'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthedTodayRouteImport } from './routes/_authed.today'
 import { Route as AuthedTimelineRouteImport } from './routes/_authed.timeline'
-import { Route as AuthedTestsRouteImport } from './routes/_authed.tests'
 import { Route as AuthedStudentsRouteImport } from './routes/_authed.students'
 import { Route as AuthedSettingsRouteImport } from './routes/_authed.settings'
 import { Route as AuthedMushafRouteImport } from './routes/_authed.mushaf'
 import { Route as AuthedGroupsRouteImport } from './routes/_authed.groups'
 import { Route as AuthedGoalsRouteImport } from './routes/_authed.goals'
+import { Route as AuthedTestsIndexRouteImport } from './routes/_authed.tests.index'
 import { Route as AuthedTestsTestIdRouteImport } from './routes/_authed.tests.$testId'
 
 const SignupRoute = SignupRouteImport.update({
@@ -58,11 +58,6 @@ const AuthedTimelineRoute = AuthedTimelineRouteImport.update({
   path: '/timeline',
   getParentRoute: () => AuthedRoute,
 } as any)
-const AuthedTestsRoute = AuthedTestsRouteImport.update({
-  id: '/tests',
-  path: '/tests',
-  getParentRoute: () => AuthedRoute,
-} as any)
 const AuthedStudentsRoute = AuthedStudentsRouteImport.update({
   id: '/students',
   path: '/students',
@@ -88,10 +83,15 @@ const AuthedGoalsRoute = AuthedGoalsRouteImport.update({
   path: '/goals',
   getParentRoute: () => AuthedRoute,
 } as any)
+const AuthedTestsIndexRoute = AuthedTestsIndexRouteImport.update({
+  id: '/tests/',
+  path: '/tests/',
+  getParentRoute: () => AuthedRoute,
+} as any)
 const AuthedTestsTestIdRoute = AuthedTestsTestIdRouteImport.update({
-  id: '/$testId',
-  path: '/$testId',
-  getParentRoute: () => AuthedTestsRoute,
+  id: '/tests/$testId',
+  path: '/tests/$testId',
+  getParentRoute: () => AuthedRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
@@ -104,10 +104,10 @@ export interface FileRoutesByFullPath {
   '/mushaf': typeof AuthedMushafRoute
   '/settings': typeof AuthedSettingsRoute
   '/students': typeof AuthedStudentsRoute
-  '/tests': typeof AuthedTestsRouteWithChildren
   '/timeline': typeof AuthedTimelineRoute
   '/today': typeof AuthedTodayRoute
   '/tests/$testId': typeof AuthedTestsTestIdRoute
+  '/tests/': typeof AuthedTestsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -119,10 +119,10 @@ export interface FileRoutesByTo {
   '/mushaf': typeof AuthedMushafRoute
   '/settings': typeof AuthedSettingsRoute
   '/students': typeof AuthedStudentsRoute
-  '/tests': typeof AuthedTestsRouteWithChildren
   '/timeline': typeof AuthedTimelineRoute
   '/today': typeof AuthedTodayRoute
   '/tests/$testId': typeof AuthedTestsTestIdRoute
+  '/tests': typeof AuthedTestsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -136,10 +136,10 @@ export interface FileRoutesById {
   '/_authed/mushaf': typeof AuthedMushafRoute
   '/_authed/settings': typeof AuthedSettingsRoute
   '/_authed/students': typeof AuthedStudentsRoute
-  '/_authed/tests': typeof AuthedTestsRouteWithChildren
   '/_authed/timeline': typeof AuthedTimelineRoute
   '/_authed/today': typeof AuthedTodayRoute
   '/_authed/tests/$testId': typeof AuthedTestsTestIdRoute
+  '/_authed/tests/': typeof AuthedTestsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -153,10 +153,10 @@ export interface FileRouteTypes {
     | '/mushaf'
     | '/settings'
     | '/students'
-    | '/tests'
     | '/timeline'
     | '/today'
     | '/tests/$testId'
+    | '/tests/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -168,10 +168,10 @@ export interface FileRouteTypes {
     | '/mushaf'
     | '/settings'
     | '/students'
-    | '/tests'
     | '/timeline'
     | '/today'
     | '/tests/$testId'
+    | '/tests'
   id:
     | '__root__'
     | '/'
@@ -184,10 +184,10 @@ export interface FileRouteTypes {
     | '/_authed/mushaf'
     | '/_authed/settings'
     | '/_authed/students'
-    | '/_authed/tests'
     | '/_authed/timeline'
     | '/_authed/today'
     | '/_authed/tests/$testId'
+    | '/_authed/tests/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -249,13 +249,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedTimelineRouteImport
       parentRoute: typeof AuthedRoute
     }
-    '/_authed/tests': {
-      id: '/_authed/tests'
-      path: '/tests'
-      fullPath: '/tests'
-      preLoaderRoute: typeof AuthedTestsRouteImport
-      parentRoute: typeof AuthedRoute
-    }
     '/_authed/students': {
       id: '/_authed/students'
       path: '/students'
@@ -291,27 +284,22 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedGoalsRouteImport
       parentRoute: typeof AuthedRoute
     }
+    '/_authed/tests/': {
+      id: '/_authed/tests/'
+      path: '/tests'
+      fullPath: '/tests/'
+      preLoaderRoute: typeof AuthedTestsIndexRouteImport
+      parentRoute: typeof AuthedRoute
+    }
     '/_authed/tests/$testId': {
       id: '/_authed/tests/$testId'
-      path: '/$testId'
+      path: '/tests/$testId'
       fullPath: '/tests/$testId'
       preLoaderRoute: typeof AuthedTestsTestIdRouteImport
-      parentRoute: typeof AuthedTestsRoute
+      parentRoute: typeof AuthedRoute
     }
   }
 }
-
-interface AuthedTestsRouteChildren {
-  AuthedTestsTestIdRoute: typeof AuthedTestsTestIdRoute
-}
-
-const AuthedTestsRouteChildren: AuthedTestsRouteChildren = {
-  AuthedTestsTestIdRoute: AuthedTestsTestIdRoute,
-}
-
-const AuthedTestsRouteWithChildren = AuthedTestsRoute._addFileChildren(
-  AuthedTestsRouteChildren,
-)
 
 interface AuthedRouteChildren {
   AuthedGoalsRoute: typeof AuthedGoalsRoute
@@ -319,9 +307,10 @@ interface AuthedRouteChildren {
   AuthedMushafRoute: typeof AuthedMushafRoute
   AuthedSettingsRoute: typeof AuthedSettingsRoute
   AuthedStudentsRoute: typeof AuthedStudentsRoute
-  AuthedTestsRoute: typeof AuthedTestsRouteWithChildren
   AuthedTimelineRoute: typeof AuthedTimelineRoute
   AuthedTodayRoute: typeof AuthedTodayRoute
+  AuthedTestsTestIdRoute: typeof AuthedTestsTestIdRoute
+  AuthedTestsIndexRoute: typeof AuthedTestsIndexRoute
 }
 
 const AuthedRouteChildren: AuthedRouteChildren = {
@@ -330,9 +319,10 @@ const AuthedRouteChildren: AuthedRouteChildren = {
   AuthedMushafRoute: AuthedMushafRoute,
   AuthedSettingsRoute: AuthedSettingsRoute,
   AuthedStudentsRoute: AuthedStudentsRoute,
-  AuthedTestsRoute: AuthedTestsRouteWithChildren,
   AuthedTimelineRoute: AuthedTimelineRoute,
   AuthedTodayRoute: AuthedTodayRoute,
+  AuthedTestsTestIdRoute: AuthedTestsTestIdRoute,
+  AuthedTestsIndexRoute: AuthedTestsIndexRoute,
 }
 
 const AuthedRouteWithChildren =

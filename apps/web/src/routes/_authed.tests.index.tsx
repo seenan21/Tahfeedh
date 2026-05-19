@@ -15,7 +15,7 @@ interface RecentTestRow {
   ranges: unknown;
 }
 
-export const Route = createFileRoute('/_authed/tests')({
+export const Route = createFileRoute('/_authed/tests/')({
   component: TestsPage,
 });
 

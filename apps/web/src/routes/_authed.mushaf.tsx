@@ -16,9 +16,11 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import type { ErrorLocationStatsRow, MemorizationStatus, NextNewLesson } from '@tahfeedh/shared';
 import type { OverlayMode } from '../mushaf/MushafPage';
+import type { OverlayMarker } from '../mushaf/getOverlayMarkers';
 import { homeRouteForRole } from '../lib/auth';
 import { supabase } from '../lib/supabase';
 import { quranIndex } from '../data/quran-data';
+import { ErrorDetailModal } from '../mushaf/ErrorDetailModal';
 import { MushafGrid } from '../mushaf/MushafGrid';
 import { MushafPage } from '../mushaf/MushafPage';
 import { PageDetailsPanel } from '../mushaf/PageDetailsPanel';
@@ -85,6 +87,7 @@ function MushafRoute() {
   const [pendingJump, setPendingJump] = useState<number | string>('');
 
   const [overlayMode, setOverlayMode] = useState<OverlayMode>(() => initialOverlayMode());
+  const [tappedMarker, setTappedMarker] = useState<OverlayMarker | null>(null);
 
   const { data: pagesData, isLoading: pagesLoading } = useQuery({
     queryKey: ['memorization_pages', user.id],
@@ -279,6 +282,7 @@ function MushafRoute() {
                 pageNumber={selectedPage}
                 overlays={errorStats}
                 overlayMode={overlayMode}
+                onMarkerTap={(marker) => setTappedMarker(marker)}
               />
             </Box>
             <Box className={classes.detailsColumn}>
@@ -308,6 +312,13 @@ function MushafRoute() {
           }}
         />
       )}
+
+      <ErrorDetailModal
+        studentId={user.id}
+        marker={tappedMarker}
+        stats={errorStats ?? []}
+        onClose={() => setTappedMarker(null)}
+      />
     </Stack>
   );
 }

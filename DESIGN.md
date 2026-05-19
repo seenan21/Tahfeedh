@@ -297,11 +297,11 @@ The static QUL data stays. The Tahfeedh DB stays. The integration is genuinely a
 - Memorization marking (per page, or per verse for in-progress pages)
 - Goal creation (long-term targets)
 - Settings: pages per session, completed-Quran flag
-- Generate / regenerate invite code
+- Classroom tab — see active teachers, join via teacher's 8-char code, leave teacher (ADR 0028)
 - Page deep-dive: tap any page → see all errors, all tests, full history
 
 **Teacher-facing:**
-- Sign up → role selection → enter student invite codes
+- Sign up → role selection → generate an 8-char invite code (24h TTL, reusable, rotatable) for students to join with (ADR 0028)
 - Student list, grouped by class (groups CRUD)
 - Drill into any enrolled student → view their data + teacher controls
 - Start test on a student: pick test_type, pick range, enter live test mode
@@ -981,7 +981,7 @@ Full DDL lives in `supabase/migrations/*.sql`. This section is the conceptual re
 |---|---|---|
 | `app_user` | Identity hub | Extends `auth.users`; single `role` column (dual-role deferred — see notes-for-future.md) |
 | `student_settings` | Per-student config | 1:1 with `app_user`; auto-created via trigger |
-| `student_code` | Shareable invite codes | 6-char, no ambiguous chars; auto-generated for students |
+| `teacher_invite_code` | Teacher-issued classroom codes (ADR 0028) | 8-char Crockford-ish, 24h TTL, reusable, rotatable; student enters to join |
 | `student_group` | Teacher's classes/halaqahs | Owned by teacher; unique name per teacher |
 | `enrollment` | Teacher ↔ student relations | Many-to-many; UNIQUE(teacher_id, student_id); RLS uses this |
 | `memorization_page` | Page-level memorization | Sparse: no row = page untouched |
@@ -1038,11 +1038,14 @@ Helper functions in §12.3 do not change; the algorithm reads `pages_per_session
 | `current_session_number(student_id)` | Count of distinct days with completed test |
 | `session_status_today(student_id, date)` | Returns (status, has_new, has_revision, completed_quran) |
 | `daily_streak(student_id)` | Walks backward from today counting consecutive complete days |
-| `generate_invite_code()` | 6-char code, no ambiguous chars (no I/L/O/0/1) |
-| `is_my_student(student_id)` | RLS helper: is the current `auth.uid()` a teacher of this student? |
+| `_mint_invite_code()` | Internal: 8-char Crockford code (alphabet `ABCDEFGHJKLMNPQRSTUVWXYZ23456789`, no 0/O/1/I/L). ADR 0028 |
+| `get_or_create_teacher_invite_code()` | Teacher RPC: returns the current live code or mints one (24h TTL). ADR 0028 |
+| `rotate_teacher_invite_code()` | Teacher RPC: revokes the active code, mints a fresh one. ADR 0028 |
+| `enroll_via_code(code)` | Student RPC: validates a teacher's code → INSERT or unpause enrollment. ADR 0028 |
+| `leave_teacher(teacher_id)` | Student RPC: flips own enrollment to `'paused'`. ADR 0028 |
+| `is_my_student(student_id)` | RLS helper: is the current `auth.uid()` a teacher of this student? (gates on `status='active'`) |
 | `touch_updated_at()` | Generic updated_at trigger |
 | `ensure_student_settings()` | Trigger: auto-create settings row when app_user created |
-| `ensure_student_code()` | Trigger: auto-generate invite code for new students |
 
 ### 12.4 Key RLS principles
 
@@ -1362,8 +1365,9 @@ Standard Mantine spacing tokens. AppShell sidebar 260px wide on desktop. Content
 **0:30–2:15 — The Solution: Tahfeedh in action**
 - Solo student opens app, sees Today plan — 1 new lesson + 5 reviews
 - Each item has a reason ("Recurring errors on this page")
-- Student shares invite code with teacher
-- Teacher's view: enrolls student, sees their full history
+- Teacher generates an invite code and shares it (per ADR 0028)
+- Student opens the Classroom tab, taps "Join via code", enters the 8-char code
+- Teacher's view: student appears under "Ungrouped" with full history visible
 - Teacher starts a live test on page 5
 - Mushaf renders with **historical error overlays** (heatmap toggle visible)
 - Teacher taps a word that was wrong last time — error modal pops up showing it's recurred 3x
@@ -1517,20 +1521,22 @@ Dependency-ordered. AI-paced. Tick them off as you go.
 
 **Done when:** complete a test, see tomorrow's revision queue change in defensible ways.
 
-### M6 — Teacher Side
-- [ ] Teacher dashboard: enrolled students list, group filter
-- [ ] Group CRUD (create, rename, delete)
-- [ ] Click student → student drill-in (same dashboard view, read-only + teacher controls)
-- [ ] "Start test for this student" button → live test flow
-- [ ] Student invite flow: generate code (already auto-created), display in settings
-- [ ] Teacher enters code → creates `enrollment` row
+### M6 — Teacher Side (ADR 0027)
+- [x] Teacher dashboard: enrolled students as a **directory** (groups as collapsible folders + Ungrouped section, sorted alphabetically). Per-row chips: streak, today's session status (complete / partial / pending), last test rating + relative time.
+- [x] Group CRUD (create, rename, delete) — inline on the Students route. Dedicated `/groups` route dropped per ADR 0027.
+- [x] Click student → drill-in `/students/$studentId` — header (name, group, streak, "Start test for this student") + reused M7 cards (`<ForecastCard>`, `<ActivityStatsCard>`, `<RevisionHealthGrid>`) + recent tests list.
+- [x] "Start test for this student" → existing `TestCreationModal` in `mode="enrolled_teacher"`. Server `/api/tests/create` enrolled_teacher branch lights up (was stubbed 501 in Phase D).
+- [x] Teacher enters code → enrollment row — `Enroll via code` button on the Students page calls existing `enroll_via_code(text)` RPC.
+- [ ] Student invite flow: display student's code in their Settings (M7.5).
 
-**Done when:** teacher account manages 3 students, runs a test on any of them, sees full history.
+**Done when:** teacher account manages 3 students across groups, runs a test on any of them, sees full history. Code-display side is M7.5 (Settings page).
 
-### M7 — Timeline + Polish
-- [ ] Timeline/Calendar view: past tests, errors, milestones
-- [ ] Error detail modal with full occurrence history, trend, mark-resolved, ghost-error reveal toggle (ADR 0023)
-- [ ] Settings → Edit Memorization screen (reopens onboarding Step 2 with current state)
+### M7 — Progress + Error Drilldown + Polish
+
+Reframed (ADR 0025): the old "Timeline" route presumed a chronological past-events view, but the recap route + Tests-landing sparkline already cover historical surfaces. The M7 route is now forward-looking — forecast, revision health, activity stats. The error-detail modal (ADR 0023 design / ADR 0026 implementation) lives on the mushaf.
+
+- [x] **Progress dashboard** at `/progress` (renamed from `/timeline`): ForecastCard (next juz + full Quran completion at configured pace), ActivityStatsCard (7d/30d toggle — pages memorized, pages reviewed, tests + pass rate), RevisionHealthGrid (30 juz cells colored by stalest ayah's `last_reviewed_at`). Each component accepts `studentId?: string` so M6's teacher drill-in reuses them.
+- [x] Error detail modal with per-occurrence list + ghost-error reveal toggle (ADR 0023 + ADR 0026) — opens from mushaf overlay taps.
 - [ ] Empty states with personality
 - [ ] Loading skeletons everywhere
 - [ ] Error toasts on failures
@@ -1538,6 +1544,24 @@ Dependency-ordered. AI-paced. Tick them off as you go.
 - [ ] PWA manifest + service worker stub
 
 **Done when:** app feels finished. Empty states have personality. Mobile works.
+
+### M7.5 — Settings Page
+Carved out of M7 — the Settings route is currently an `EmptyState` stub and bundles enough surface area to be its own milestone slot.
+
+Student settings:
+- [ ] Daily capacity controls (`pages_per_session_new` + `pages_per_session_revision`) — sliders or numeric inputs with the same bounds onboarding Step 3 enforces (≤ 20, half-page allowed for new)
+- [ ] `app_user.has_completed_quran` toggle
+- [ ] Classroom membership summary (the actual code mint+rotate lives in `/classroom` on the student side and the teacher Students route; Settings just links to those flows) — superseded by ADR 0028
+- [ ] Profile (name, email — read-only for MVP unless trivial)
+- [ ] **Edit Memorization** — routes to `/onboarding?edit=1` with reducer state pre-populated from current DB rows. Submits through the existing `/api/onboarding/finish` + `commit_onboarding` path (recommended path in `notes-for-future.md`, zero new SQL)
+- [ ] Hifz direction toggle (`student_settings.hifz_direction`) — currently only set at onboarding (ADR 0014)
+
+Teacher settings:
+- [ ] Profile only
+
+**Done when:** a student can change daily capacity, toggle completed-Quran, recalibrate their memorization claims via Edit Memorization, and read their invite code without leaving Settings.
+
+**Not in scope:** "Connect Quran.com" button — that lives in M8 (depends on OAuth flow).
 
 ### M8 — QF User APIs
 - [ ] OAuth Authorization Code + PKCE flow in Express using `openid-client`

@@ -89,10 +89,17 @@ export const testCreateSchema = z
     test_mode: testModeSchema,
     ranges: testRangesSchema,
     guest_tester_name: z.string().trim().min(1).max(80).optional(),
+    /** Only set when test_mode === 'enrolled_teacher'. The caller (teacher) must
+     *  be enrolled with this student; the server checks via the `enrollment` table. */
+    student_id: z.string().uuid().optional(),
   })
   .refine(
     (v) => v.test_mode === 'enrolled_teacher' || !!v.guest_tester_name,
     { message: 'guest_tester_name required for guest_teacher tests', path: ['guest_tester_name'] },
+  )
+  .refine(
+    (v) => v.test_mode !== 'enrolled_teacher' || !!v.student_id,
+    { message: 'student_id required for enrolled_teacher tests', path: ['student_id'] },
   );
 
 export type TestCreateInput = z.infer<typeof testCreateSchema>;

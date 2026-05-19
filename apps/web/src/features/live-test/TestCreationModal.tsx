@@ -12,7 +12,7 @@ import {
   TextInput,
 } from '@mantine/core';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import type { MemorizationStatus, NextNewLesson, TestCreateInput, TestType } from '@tahfeedh/shared';
+import type { MemorizationStatus, NextNewLesson, TestCreateInput, TestMode, TestType } from '@tahfeedh/shared';
 import { apiFetch } from '../../api/client';
 import { supabase } from '../../lib/supabase';
 
@@ -21,6 +21,13 @@ interface Props {
   onClose: () => void;
   onCreated: (testId: string) => void;
   studentId: string;
+  /** Defaults to 'guest_teacher' (student-initiated). Teacher drill-in passes
+   *  'enrolled_teacher'; the modal hides the witness field and the server uses
+   *  the caller as the teacher_id (M6). */
+  mode?: TestMode;
+  /** Subject label when launching from teacher drill-in. Renders in the modal
+   *  header so the teacher confirms they're starting a test for the right student. */
+  subjectLabel?: string;
 }
 
 interface PageStatusRow {
@@ -90,8 +97,16 @@ function validateRange(
   return null;
 }
 
-export function TestCreationModal({ opened, onClose, onCreated, studentId }: Props) {
+export function TestCreationModal({
+  opened,
+  onClose,
+  onCreated,
+  studentId,
+  mode = 'guest_teacher',
+  subjectLabel,
+}: Props) {
   const queryClient = useQueryClient();
+  const isTeacherFlow = mode === 'enrolled_teacher';
   const [testType, setTestType] = useState<TestType>('newly_memorized');
   const [pageStart, setPageStart] = useState<number | string>(1);
   const [pageEnd, setPageEnd] = useState<number | string>(1);
@@ -129,7 +144,7 @@ export function TestCreationModal({ opened, onClose, onCreated, studentId }: Pro
   const { data: nextLesson } = useQuery({
     queryKey: ['next_new_lesson', studentId],
     queryFn: fetchNextNewLesson,
-    enabled: opened,
+    enabled: opened && !isTeacherFlow,
     staleTime: 30_000,
   });
 
@@ -162,19 +177,26 @@ export function TestCreationModal({ opened, onClose, onCreated, studentId }: Pro
       setError(rangeErr);
       return;
     }
-    if (!witness.trim()) {
+    if (!isTeacherFlow && !witness.trim()) {
       setError('A witness name is required for guest-witnessed tests.');
       return;
     }
     setError(null);
     setSubmitting(true);
     try {
-      const body: TestCreateInput = {
-        test_type: testType,
-        test_mode: 'guest_teacher',
-        ranges: [{ type: 'page', start, end }],
-        guest_tester_name: witness.trim(),
-      };
+      const body: TestCreateInput = isTeacherFlow
+        ? {
+            test_type: testType,
+            test_mode: 'enrolled_teacher',
+            ranges: [{ type: 'page', start, end }],
+            student_id: studentId,
+          }
+        : {
+            test_type: testType,
+            test_mode: 'guest_teacher',
+            ranges: [{ type: 'page', start, end }],
+            guest_tester_name: witness.trim(),
+          };
       const res = await apiFetch<{ id: string }>('/api/tests/create', {
         method: 'POST',
         body: JSON.stringify(body),
@@ -191,15 +213,39 @@ export function TestCreationModal({ opened, onClose, onCreated, studentId }: Pro
     }
   };
 
+  const titleNode = isTeacherFlow ? (
+    <Stack gap={0}>
+      <Text size="xs" tt="uppercase" c="dimmed" fw={700} lts={0.8}>
+        Begin Test
+      </Text>
+      {subjectLabel && (
+        <Text fw={700} fz="md">
+          for {subjectLabel}
+        </Text>
+      )}
+    </Stack>
+  ) : (
+    'Begin Test'
+  );
+
   return (
-    <Modal opened={opened} onClose={onClose} title="Begin Test" size="md" centered>
+    <Modal opened={opened} onClose={onClose} title={titleNode} size="md" centered>
       <Stack gap="md">
-        <Alert color="sage" variant="light" radius="md">
-          <Text size="xs">
-            This is a self-test you run from your device. Pick someone listening to your
-            recitation — a teacher, parent, sibling, or friend — as the witness, then start.
-          </Text>
-        </Alert>
+        {isTeacherFlow ? (
+          <Alert color="sage" variant="light" radius="md">
+            <Text size="xs">
+              You're starting a test as the witnessing teacher. Errors and pass/fail
+              ratings will be attributed to you.
+            </Text>
+          </Alert>
+        ) : (
+          <Alert color="sage" variant="light" radius="md">
+            <Text size="xs">
+              This is a self-test you run from your device. Pick someone listening to your
+              recitation — a teacher, parent, sibling, or friend — as the witness, then start.
+            </Text>
+          </Alert>
+        )}
 
         <Stack gap={4}>
           <Text size="xs" fw={600} c="dimmed">
@@ -220,7 +266,7 @@ export function TestCreationModal({ opened, onClose, onCreated, studentId }: Pro
           </Text>
         </Stack>
 
-        {testType === 'newly_memorized' && nextLesson?.page_number && (
+        {testType === 'newly_memorized' && !isTeacherFlow && nextLesson?.page_number && (
           <Alert color="sage" variant="light" radius="md">
             <Group justify="space-between">
               <Text size="xs">
@@ -260,12 +306,14 @@ export function TestCreationModal({ opened, onClose, onCreated, studentId }: Pro
           />
         </Group>
 
-        <TextInput
-          label="Witness name"
-          placeholder="e.g. Imam Yusuf, Mom, Friend"
-          value={witness}
-          onChange={(e) => setWitness(e.currentTarget.value)}
-        />
+        {!isTeacherFlow && (
+          <TextInput
+            label="Witness name"
+            placeholder="e.g. Imam Yusuf, Mom, Friend"
+            value={witness}
+            onChange={(e) => setWitness(e.currentTarget.value)}
+          />
+        )}
 
         {(error || liveError) && (
           <Alert color="brick" variant="light">

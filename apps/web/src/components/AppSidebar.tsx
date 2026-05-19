@@ -1,12 +1,12 @@
 import { Link, useMatchRoute } from '@tanstack/react-router';
 import {
   BookOpen,
-  CalendarDays,
   GraduationCap,
-  LayoutGrid,
+  School,
   Settings as SettingsIcon,
   Sun,
   Target,
+  TrendingUp,
   Users,
   type LucideIcon,
 } from 'lucide-react';
@@ -21,17 +21,17 @@ interface NavItem {
 }
 
 const STUDENT_NAV: NavItem[] = [
-  { label: 'Today',     arabic: 'اليوم',     to: '/today',    icon: Sun },
-  { label: 'Tests',     arabic: 'الاختبارات', to: '/tests',    icon: GraduationCap },
-  { label: 'Timeline',  arabic: 'السجل',     to: '/timeline', icon: CalendarDays },
-  { label: 'My Mushaf', arabic: 'مصحفي',     to: '/mushaf',   icon: BookOpen },
-  { label: 'Goals',     arabic: 'الأهداف',   to: '/goals',    icon: Target },
-  { label: 'Settings',  arabic: 'الإعدادات', to: '/settings', icon: SettingsIcon },
+  { label: 'Today',     arabic: 'اليوم',     to: '/today',     icon: Sun },
+  { label: 'Tests',     arabic: 'الاختبارات', to: '/tests',     icon: GraduationCap },
+  { label: 'Progress',  arabic: 'التقدم',    to: '/progress',  icon: TrendingUp },
+  { label: 'My Mushaf', arabic: 'مصحفي',     to: '/mushaf',    icon: BookOpen },
+  { label: 'Classroom', arabic: 'الحلقة',    to: '/classroom', icon: School },
+  { label: 'Goals',     arabic: 'الأهداف',   to: '/goals',     icon: Target },
+  { label: 'Settings',  arabic: 'الإعدادات', to: '/settings',  icon: SettingsIcon },
 ];
 
 const TEACHER_NAV: NavItem[] = [
   { label: 'Students',  arabic: 'الطلاب',     to: '/students', icon: Users },
-  { label: 'Groups',    arabic: 'الحلقات',    to: '/groups',   icon: LayoutGrid },
   { label: 'Tests',     arabic: 'الاختبارات', to: '/tests',    icon: GraduationCap },
   { label: 'Settings',  arabic: 'الإعدادات',  to: '/settings', icon: SettingsIcon },
 ];

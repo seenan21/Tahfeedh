@@ -2,6 +2,50 @@
 
 ## [Unreleased]
 
+### Changed — Enrollment direction flip + Classroom tab (ADR 0028)
+- **Migration `0021_invite_code_flip.sql` (applied).** Drops `student_code` (table, `ensure_student_code` trigger, `generate_invite_code` helper). New `teacher_invite_code` table — 8-char Crockford-ish codes (alphabet `ABCDEFGHJKLMNPQRSTUVWXYZ23456789`, no 0/O/1/I/L), reusable, 24-hour TTL. RLS `tic_owner` lets the teacher manage their own codes; students never touch the table directly.
+- **New RPCs** (all `SECURITY DEFINER`): `get_or_create_teacher_invite_code()` returns the teacher's current live code (mints if none); `rotate_teacher_invite_code()` revokes the active code + mints a fresh one; `leave_teacher(p_teacher_id)` flips the caller's enrollment to `'paused'` so existing `is_my_student()` RLS revokes the teacher's data access immediately.
+- **`enroll_via_code(p_code)` rewritten** — caller is now the **student**. Resolves code → teacher, rejects expired/revoked/self-codes, INSERTs or UPDATEs the enrollment row (re-join after `'paused'` flips back to `'active'` and preserves history). New students land in `group_id = NULL` (Ungrouped); the teacher organizes them later.
+- **`apps/web/src/routes/_authed.students.tsx`** (teacher): "Enroll via code" replaced with **"Invite a student"** modal — shows the teacher's current 8-char code in a monospace block with a Copy button + "Rotate code" action (confirm prompt). Expiry timestamp displayed.
+- **`apps/web/src/routes/_authed.classroom.tsx`** (student, NEW): lists active teachers (display name, joined-date, optional group badge from the teacher's grouping), "Join via code" CTA, "Leave class" per row via kebab menu. Empty state directs the student to ask their teacher for an invite code.
+- **`apps/web/src/components/AppSidebar.tsx`** — student nav gains **Classroom** entry (`/classroom`, icon `School`, Arabic `الحلقة`) between My Mushaf and Goals.
+- **ADR 0028** captures the flip, rejected alternatives (pending state, single-use codes), and the trust-direction rationale.
+
+### Added — M6 teacher side (directory + drill-in)
+- **`apps/web/src/routes/_authed.students.tsx`** rewritten from EmptyState to the teacher directory view (ADR 0027). Groups as collapsible folders + an Ungrouped section. Each row shows display name, streak (`daily_streak` RPC), today's session status (`session_status_today` RPC), and last test rating + relative time. Inline `+ New group` + `Enroll via code` actions in the page header; kebab on each group header for Rename / Delete; Move-to-group menu on each student row. All writes go directly through Supabase JS under existing RLS (`sg_owner` + `en_teacher_all` + `enroll_via_code` SECURITY DEFINER) — no migration, no Express endpoints.
+- **`apps/web/src/routes/_authed.students.$studentId.tsx`** — new teacher drill-in. Header (name, group, streak, "Start test for this student" button) + reused M7 cards (`<ForecastCard>`, `<ActivityStatsCard>`, `<RevisionHealthGrid>` with `studentId` prop) + recent-tests list linking to `/tests/$testId/recap`. Verifies active enrollment before rendering.
+- **`apps/web/src/features/teacher/useTeacherStudents.ts`** — hook that joins `enrollment` + `app_user` + `student_group` into a `studentsByGroup: Map<groupId | null, TeacherStudent[]>` shape.
+- **`apps/web/src/features/live-test/TestCreationModal.tsx`** extended — accepts `mode?: 'guest_teacher' | 'enrolled_teacher'` (default `guest_teacher`) and `subjectLabel?: string`. In `enrolled_teacher` mode: witness field hidden, `next_new_lesson` pre-fill disabled, body sends `{ test_mode: 'enrolled_teacher', student_id }`.
+- **`apps/server/src/routes/tests.ts`** — `POST /api/tests/create` now handles the `enrolled_teacher` branch (was a stub 501 in Phase D). Verifies the caller has an active `enrollment` with `body.student_id`, then inserts with `student_id` from payload + `teacher_id` from caller.
+- **`packages/shared/src/schema.ts`** — `testCreateSchema` accepts optional `student_id: z.string().uuid()` with a refine: required when `test_mode === 'enrolled_teacher'`.
+- **`apps/web/src/components/AppSidebar.tsx`** — Teacher nav drops the standalone "Groups" entry; the Students route owns group CRUD now.
+- **Removed:** `apps/web/src/routes/_authed.groups.tsx`.
+- **ADR 0027** — captures the groups-as-folders directory model + the drill-in's reuse of M7 cards via `studentId` prop.
+- **DESIGN.md §19 M6** patched to reflect implementation.
+
+### Added — M7 progress dashboard + error detail modal
+- **New route `apps/web/src/routes/_authed.progress.tsx`** (replaces `_authed.timeline.tsx`). Sidebar entry renamed Timeline → Progress (ar: التقدم), icon `TrendingUp` (ADR 0025). Renders three reusable cards: ForecastCard + ActivityStatsCard + RevisionHealthGrid.
+- **`apps/web/src/features/progress/ForecastCard.tsx`** — configured-pace projection. Reads `student_settings.pages_per_session_new` + `hifz_direction` + `memorization_page`. Shows next-juz and full-Quran completion dates with pages-left + days-away counts. Deterministic forecast (no rolling-pace math, no slip-warning).
+- **`apps/web/src/features/progress/ActivityStatsCard.tsx`** — 7d/30d SegmentedControl toggle, three metrics: pages newly memorized (count of `memorization_page.memorized_at >= cutoff`), pages reviewed (distinct pages from `ayah_review_state.last_reviewed_at` mapped via `quran-index.json`), tests taken with pass rate (`strong_pass` + `excellent` over total).
+- **`apps/web/src/features/progress/RevisionHealthGrid.tsx`** — 30 juz cells colored by the stalest ayah's `last_reviewed_at` among memorized pages in each juz. Five bands: fresh / aging / stale / overdue / never (memorized but no review state) / untouched.
+- **`apps/web/src/features/progress/lib/forecast.ts`**, **`lib/activityStats.ts`**, **`lib/revisionHealth.ts`** — pure helper modules. The cards consume `studentId` only; helpers do the computation. Same `studentId?` prop convention will let M6 drill-in reuse the cards (ADR 0025).
+- **`apps/web/src/mushaf/ErrorDetailModal.tsx`** — per-occurrence error history modal (ADR 0026 implements ADR 0023's design). Triggered by `MushafPage` `onMarkerTap` callback wired in `_authed.mushaf.tsx`. Queries `error_log` rows at the tapped location, groups visually by `error_type`, hides cleared signatures behind an Eye-toggled "ghost errors" reveal. Uses the parent's already-fetched `error_location_stats.cleared` set to classify ghost-or-active — no schema change, no second stats fetch.
+- **`apps/web/src/routes/_authed.mushaf.tsx`** — wires `onMarkerTap` + mounts `<ErrorDetailModal>`.
+- **`apps/web/src/components/AppSidebar.tsx`** — student nav entry switched Timeline → Progress, icon `CalendarDays` → `TrendingUp`.
+- **Removed:** `apps/web/src/routes/_authed.timeline.tsx`.
+- **ADR 0025** — captures the timeline → progress reframe + the `studentId?`-prop reuse convention.
+- **ADR 0026** — closes out ADR 0023 (no longer "Planned").
+- **DESIGN.md §19 M7** patched to reflect the reframed scope.
+
+### Added — M5 algorithm completion
+- **Migration `0020_m5_algorithm.sql` (applied).** Rewrites `submit_test()` and `_compute_session_plan()` to close all `-- TODO M5+` markers from migrations 0016 + 0017 (ADR 0024).
+  - **`submit_test()`** now also: rolls up per-ayah `consecutive_clean_tests` (increment on clean coverage, reset on any logged error at the ayah); runs the Queue 2 stage machine (DESIGN.md §7.2) — strong_pass/excellent advances `recent_stage`, good/pass_needs_practice slides `ready_at` without advancing, needs_work decrements, **fail resets stage to 1 + clears `graduated_at` (graduated pages drop back into Queue 2) — page status unchanged**; engages the stage machine on the `newly_memorized + strong_pass` test that promotes the page (stage 1, ready_at = +1 day); graduates ayahs when stage would exceed 3 (`recent_stage = NULL`, `graduated_at = now`, `ready_at = NULL`); promotes pages from `memorized → mastered` when **every** ayah on the page has `consecutive_clean_tests >= 5` after a `revision + strong_pass`. Intervals: stage 1 → +1d, stage 2 → +3d, stage 3 → +7d.
+  - **`_compute_session_plan()`** now: Queue 2 first — pages with any ayah where `recent_stage IS NOT NULL AND ready_at <= now()`, ordered by `min(stage) asc, min(ready_at) asc`; Queue 3 tops up — graduated pages scored by the DESIGN.md §7.2 priority formula minus `mutashabihat_penalty` (TODO M9): `recency × 1.0 + errors × 20.0 - mastery × 3.0 + juz_cohesion (±2 neighbors reviewed in last 3 days) + overdue × 10.0`. `error_rate_last_3_tests` is approximated by `count(non-cleared error_location_stats on page) / 3` (proxy, comment noted in SQL).
+- **ADR 0024** (`decisions/0024-m5-algorithm-completion.md`) — captures the four chosen rules + the proxy on error_rate.
+
+### Changed — Milestone plan
+- **New milestone M7.5 — Settings Page.** The `_authed.settings.tsx` route is still an `EmptyState` stub but bundles enough work (capacity sliders, completed-Quran flag, invite code display, profile, hifz direction toggle, Edit Memorization) to warrant its own slot between M7 and M8. DESIGN.md §19 updated: M7's "Settings → Edit Memorization" bullet moved into the new M7.5 block. Plan.Md "Remaining milestones" updated. `notes-for-future.md`'s "Edit Memorization (post-M8)" entry retitled to "(M7.5)" — the previous wording predated the M7.5 carve-out. No ADR — this is plan housekeeping, not architectural.
+
 ### Changed — Design notes for M7
 - **ADR 0023** (`decisions/0023-error-detail-modal-design.md`) — captures the error detail modal design intent: list every individual `error_log` occurrence at the tapped location (not summarized), and hide `cleared = true` rows by default behind a "ghost errors — show" reveal. No code yet; M7 work.
 - **DESIGN.md §9.6** updated — modal lists per-occurrence rows; ghost-error rules added.

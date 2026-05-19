@@ -61,9 +61,9 @@ Deferred decisions and scope cuts made during the hackathon MVP build. Each entr
 
 ---
 
-## Edit Memorization / Recalibrate (post-M8)
+## Edit Memorization / Recalibrate (M7.5)
 
-**Status:** Deferred. ADR 0015 establishes that post-onboarding, `memorization_page.status` only changes via the post-test pipeline. No per-page "mark memorized" UI is exposed.
+**Status:** Scheduled for M7.5 (the Settings page milestone — see DESIGN.md §19). ADR 0015 establishes that post-onboarding, `memorization_page.status` only changes via the post-test pipeline. No per-page "mark memorized" UI is exposed.
 
 **Why deferred:** preserves the philosophy that hifz status is earned through witnessed tests (DESIGN.md §3.1 + §13.5). A self-marking UI is a temptation to game streaks and bypasses the algorithm's evidence model. The "Edit Memorization" Settings entry mentioned in DESIGN.md §14.2 is the only acceptable escape hatch — and even that should reuse onboarding's bulk-write, not be a per-page toggle.
 

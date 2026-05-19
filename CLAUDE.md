@@ -234,10 +234,11 @@ For per-directory indexes, follow the table below. Each subdirectory has its own
 | `apps/web/` | Vite + React + Mantine + TanStack Router frontend | UI work |
 | `apps/server/` | Express + Supabase service-role backend | Endpoints, RLS-bypass writes, QF proxy |
 | `packages/shared/` | `@tahfeedh/shared` — types + Zod schemas used by both apps | Cross-app contracts |
-| `supabase/migrations/` | Numbered SQL migrations 0001–0015 | Schema, functions, RLS |
+| `supabase/migrations/` | Numbered SQL migrations 0001–0021 | Schema, functions, RLS |
 | `scripts/` | Build scripts (mushaf data, index rebuild, fonts) | Regenerating static data |
-| `decisions/` | Architecture Decision Records (ADRs) | Looking up the "why" behind a build-time choice |
+| `decisions/` | Architecture Decision Records (ADRs 0001–0028) | Looking up the "why" behind a build-time choice |
 | `DESIGN.md` | Master design doc — the constitution | High-level product/architecture context |
 | `DESIGN-SYSTEM.md` | Color tokens, typography, component recipes, bilingual rules | Visual decisions, theme work |
 | `Plan.Md` | Short anchor: where we are, phase progression | Returning to work after context clears |
 | `CHANGELOG.md` | `[Unreleased]` + milestone history | Recording changes per session |
+| `notes-for-future.md` | Deferred scope cuts + restore plans | Looking up why something was cut, planning a deferred feature |

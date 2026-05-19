@@ -31,16 +31,41 @@ testsRouter.post('/create', async (req, res, next) => {
     }
     const body = parsed.data;
 
+    let studentId: string;
+    let teacherId: string | null;
+
     if (body.test_mode === 'enrolled_teacher') {
-      res.status(501).json({ error: 'enrolled_teacher tests land in M6' });
-      return;
+      // Teacher is the caller. Verify active enrollment with body.student_id.
+      const targetStudentId = body.student_id!;
+      const { data: enrollmentRow, error: enrErr } = await supabaseAdmin
+        .from('enrollment')
+        .select('id')
+        .eq('teacher_id', user.id)
+        .eq('student_id', targetStudentId)
+        .eq('status', 'active')
+        .maybeSingle();
+      if (enrErr) {
+        console.error('[tests/create] enrollment lookup failed', enrErr);
+        res.status(500).json({ error: enrErr.message });
+        return;
+      }
+      if (!enrollmentRow) {
+        res.status(403).json({ error: 'no active enrollment with that student' });
+        return;
+      }
+      studentId = targetStudentId;
+      teacherId = user.id;
+    } else {
+      // guest_teacher — student-initiated; caller is the student.
+      studentId = user.id;
+      teacherId = null;
     }
 
     const { data, error } = await supabaseAdmin
       .from('test')
       .insert({
-        student_id: user.id,
-        teacher_id: null,
+        student_id: studentId,
+        teacher_id: teacherId,
         test_type: body.test_type,
         status: 'in_progress',
         ranges: body.ranges,

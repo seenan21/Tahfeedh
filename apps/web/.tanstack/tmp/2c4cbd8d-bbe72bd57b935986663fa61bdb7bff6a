@@ -15,14 +15,15 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as AuthedRouteImport } from './routes/_authed'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthedTodayRouteImport } from './routes/_authed.today'
-import { Route as AuthedTimelineRouteImport } from './routes/_authed.timeline'
 import { Route as AuthedStudentsRouteImport } from './routes/_authed.students'
 import { Route as AuthedSettingsRouteImport } from './routes/_authed.settings'
+import { Route as AuthedProgressRouteImport } from './routes/_authed.progress'
 import { Route as AuthedMushafRouteImport } from './routes/_authed.mushaf'
-import { Route as AuthedGroupsRouteImport } from './routes/_authed.groups'
 import { Route as AuthedGoalsRouteImport } from './routes/_authed.goals'
+import { Route as AuthedClassroomRouteImport } from './routes/_authed.classroom'
 import { Route as AuthedTestsIndexRouteImport } from './routes/_authed.tests.index'
 import { Route as AuthedTestsTestIdRouteImport } from './routes/_authed.tests.$testId'
+import { Route as AuthedStudentsStudentIdRouteImport } from './routes/_authed.students.$studentId'
 import { Route as AuthedTestsTestIdRecapRouteImport } from './routes/_authed.tests.$testId.recap'
 
 const SignupRoute = SignupRouteImport.update({
@@ -54,11 +55,6 @@ const AuthedTodayRoute = AuthedTodayRouteImport.update({
   path: '/today',
   getParentRoute: () => AuthedRoute,
 } as any)
-const AuthedTimelineRoute = AuthedTimelineRouteImport.update({
-  id: '/timeline',
-  path: '/timeline',
-  getParentRoute: () => AuthedRoute,
-} as any)
 const AuthedStudentsRoute = AuthedStudentsRouteImport.update({
   id: '/students',
   path: '/students',
@@ -69,19 +65,24 @@ const AuthedSettingsRoute = AuthedSettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => AuthedRoute,
 } as any)
+const AuthedProgressRoute = AuthedProgressRouteImport.update({
+  id: '/progress',
+  path: '/progress',
+  getParentRoute: () => AuthedRoute,
+} as any)
 const AuthedMushafRoute = AuthedMushafRouteImport.update({
   id: '/mushaf',
   path: '/mushaf',
   getParentRoute: () => AuthedRoute,
 } as any)
-const AuthedGroupsRoute = AuthedGroupsRouteImport.update({
-  id: '/groups',
-  path: '/groups',
-  getParentRoute: () => AuthedRoute,
-} as any)
 const AuthedGoalsRoute = AuthedGoalsRouteImport.update({
   id: '/goals',
   path: '/goals',
+  getParentRoute: () => AuthedRoute,
+} as any)
+const AuthedClassroomRoute = AuthedClassroomRouteImport.update({
+  id: '/classroom',
+  path: '/classroom',
   getParentRoute: () => AuthedRoute,
 } as any)
 const AuthedTestsIndexRoute = AuthedTestsIndexRouteImport.update({
@@ -94,6 +95,11 @@ const AuthedTestsTestIdRoute = AuthedTestsTestIdRouteImport.update({
   path: '/tests/$testId',
   getParentRoute: () => AuthedRoute,
 } as any)
+const AuthedStudentsStudentIdRoute = AuthedStudentsStudentIdRouteImport.update({
+  id: '/$studentId',
+  path: '/$studentId',
+  getParentRoute: () => AuthedStudentsRoute,
+} as any)
 const AuthedTestsTestIdRecapRoute = AuthedTestsTestIdRecapRouteImport.update({
   id: '/recap',
   path: '/recap',
@@ -105,13 +111,14 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
   '/signup': typeof SignupRoute
+  '/classroom': typeof AuthedClassroomRoute
   '/goals': typeof AuthedGoalsRoute
-  '/groups': typeof AuthedGroupsRoute
   '/mushaf': typeof AuthedMushafRoute
+  '/progress': typeof AuthedProgressRoute
   '/settings': typeof AuthedSettingsRoute
-  '/students': typeof AuthedStudentsRoute
-  '/timeline': typeof AuthedTimelineRoute
+  '/students': typeof AuthedStudentsRouteWithChildren
   '/today': typeof AuthedTodayRoute
+  '/students/$studentId': typeof AuthedStudentsStudentIdRoute
   '/tests/$testId': typeof AuthedTestsTestIdRouteWithChildren
   '/tests/': typeof AuthedTestsIndexRoute
   '/tests/$testId/recap': typeof AuthedTestsTestIdRecapRoute
@@ -121,13 +128,14 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
   '/signup': typeof SignupRoute
+  '/classroom': typeof AuthedClassroomRoute
   '/goals': typeof AuthedGoalsRoute
-  '/groups': typeof AuthedGroupsRoute
   '/mushaf': typeof AuthedMushafRoute
+  '/progress': typeof AuthedProgressRoute
   '/settings': typeof AuthedSettingsRoute
-  '/students': typeof AuthedStudentsRoute
-  '/timeline': typeof AuthedTimelineRoute
+  '/students': typeof AuthedStudentsRouteWithChildren
   '/today': typeof AuthedTodayRoute
+  '/students/$studentId': typeof AuthedStudentsStudentIdRoute
   '/tests/$testId': typeof AuthedTestsTestIdRouteWithChildren
   '/tests': typeof AuthedTestsIndexRoute
   '/tests/$testId/recap': typeof AuthedTestsTestIdRecapRoute
@@ -139,13 +147,14 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
   '/signup': typeof SignupRoute
+  '/_authed/classroom': typeof AuthedClassroomRoute
   '/_authed/goals': typeof AuthedGoalsRoute
-  '/_authed/groups': typeof AuthedGroupsRoute
   '/_authed/mushaf': typeof AuthedMushafRoute
+  '/_authed/progress': typeof AuthedProgressRoute
   '/_authed/settings': typeof AuthedSettingsRoute
-  '/_authed/students': typeof AuthedStudentsRoute
-  '/_authed/timeline': typeof AuthedTimelineRoute
+  '/_authed/students': typeof AuthedStudentsRouteWithChildren
   '/_authed/today': typeof AuthedTodayRoute
+  '/_authed/students/$studentId': typeof AuthedStudentsStudentIdRoute
   '/_authed/tests/$testId': typeof AuthedTestsTestIdRouteWithChildren
   '/_authed/tests/': typeof AuthedTestsIndexRoute
   '/_authed/tests/$testId/recap': typeof AuthedTestsTestIdRecapRoute
@@ -157,13 +166,14 @@ export interface FileRouteTypes {
     | '/login'
     | '/onboarding'
     | '/signup'
+    | '/classroom'
     | '/goals'
-    | '/groups'
     | '/mushaf'
+    | '/progress'
     | '/settings'
     | '/students'
-    | '/timeline'
     | '/today'
+    | '/students/$studentId'
     | '/tests/$testId'
     | '/tests/'
     | '/tests/$testId/recap'
@@ -173,13 +183,14 @@ export interface FileRouteTypes {
     | '/login'
     | '/onboarding'
     | '/signup'
+    | '/classroom'
     | '/goals'
-    | '/groups'
     | '/mushaf'
+    | '/progress'
     | '/settings'
     | '/students'
-    | '/timeline'
     | '/today'
+    | '/students/$studentId'
     | '/tests/$testId'
     | '/tests'
     | '/tests/$testId/recap'
@@ -190,13 +201,14 @@ export interface FileRouteTypes {
     | '/login'
     | '/onboarding'
     | '/signup'
+    | '/_authed/classroom'
     | '/_authed/goals'
-    | '/_authed/groups'
     | '/_authed/mushaf'
+    | '/_authed/progress'
     | '/_authed/settings'
     | '/_authed/students'
-    | '/_authed/timeline'
     | '/_authed/today'
+    | '/_authed/students/$studentId'
     | '/_authed/tests/$testId'
     | '/_authed/tests/'
     | '/_authed/tests/$testId/recap'
@@ -254,13 +266,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedTodayRouteImport
       parentRoute: typeof AuthedRoute
     }
-    '/_authed/timeline': {
-      id: '/_authed/timeline'
-      path: '/timeline'
-      fullPath: '/timeline'
-      preLoaderRoute: typeof AuthedTimelineRouteImport
-      parentRoute: typeof AuthedRoute
-    }
     '/_authed/students': {
       id: '/_authed/students'
       path: '/students'
@@ -275,6 +280,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedSettingsRouteImport
       parentRoute: typeof AuthedRoute
     }
+    '/_authed/progress': {
+      id: '/_authed/progress'
+      path: '/progress'
+      fullPath: '/progress'
+      preLoaderRoute: typeof AuthedProgressRouteImport
+      parentRoute: typeof AuthedRoute
+    }
     '/_authed/mushaf': {
       id: '/_authed/mushaf'
       path: '/mushaf'
@@ -282,18 +294,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedMushafRouteImport
       parentRoute: typeof AuthedRoute
     }
-    '/_authed/groups': {
-      id: '/_authed/groups'
-      path: '/groups'
-      fullPath: '/groups'
-      preLoaderRoute: typeof AuthedGroupsRouteImport
-      parentRoute: typeof AuthedRoute
-    }
     '/_authed/goals': {
       id: '/_authed/goals'
       path: '/goals'
       fullPath: '/goals'
       preLoaderRoute: typeof AuthedGoalsRouteImport
+      parentRoute: typeof AuthedRoute
+    }
+    '/_authed/classroom': {
+      id: '/_authed/classroom'
+      path: '/classroom'
+      fullPath: '/classroom'
+      preLoaderRoute: typeof AuthedClassroomRouteImport
       parentRoute: typeof AuthedRoute
     }
     '/_authed/tests/': {
@@ -310,6 +322,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedTestsTestIdRouteImport
       parentRoute: typeof AuthedRoute
     }
+    '/_authed/students/$studentId': {
+      id: '/_authed/students/$studentId'
+      path: '/$studentId'
+      fullPath: '/students/$studentId'
+      preLoaderRoute: typeof AuthedStudentsStudentIdRouteImport
+      parentRoute: typeof AuthedStudentsRoute
+    }
     '/_authed/tests/$testId/recap': {
       id: '/_authed/tests/$testId/recap'
       path: '/recap'
@@ -319,6 +338,18 @@ declare module '@tanstack/react-router' {
     }
   }
 }
+
+interface AuthedStudentsRouteChildren {
+  AuthedStudentsStudentIdRoute: typeof AuthedStudentsStudentIdRoute
+}
+
+const AuthedStudentsRouteChildren: AuthedStudentsRouteChildren = {
+  AuthedStudentsStudentIdRoute: AuthedStudentsStudentIdRoute,
+}
+
+const AuthedStudentsRouteWithChildren = AuthedStudentsRoute._addFileChildren(
+  AuthedStudentsRouteChildren,
+)
 
 interface AuthedTestsTestIdRouteChildren {
   AuthedTestsTestIdRecapRoute: typeof AuthedTestsTestIdRecapRoute
@@ -332,24 +363,24 @@ const AuthedTestsTestIdRouteWithChildren =
   AuthedTestsTestIdRoute._addFileChildren(AuthedTestsTestIdRouteChildren)
 
 interface AuthedRouteChildren {
+  AuthedClassroomRoute: typeof AuthedClassroomRoute
   AuthedGoalsRoute: typeof AuthedGoalsRoute
-  AuthedGroupsRoute: typeof AuthedGroupsRoute
   AuthedMushafRoute: typeof AuthedMushafRoute
+  AuthedProgressRoute: typeof AuthedProgressRoute
   AuthedSettingsRoute: typeof AuthedSettingsRoute
-  AuthedStudentsRoute: typeof AuthedStudentsRoute
-  AuthedTimelineRoute: typeof AuthedTimelineRoute
+  AuthedStudentsRoute: typeof AuthedStudentsRouteWithChildren
   AuthedTodayRoute: typeof AuthedTodayRoute
   AuthedTestsTestIdRoute: typeof AuthedTestsTestIdRouteWithChildren
   AuthedTestsIndexRoute: typeof AuthedTestsIndexRoute
 }
 
 const AuthedRouteChildren: AuthedRouteChildren = {
+  AuthedClassroomRoute: AuthedClassroomRoute,
   AuthedGoalsRoute: AuthedGoalsRoute,
-  AuthedGroupsRoute: AuthedGroupsRoute,
   AuthedMushafRoute: AuthedMushafRoute,
+  AuthedProgressRoute: AuthedProgressRoute,
   AuthedSettingsRoute: AuthedSettingsRoute,
-  AuthedStudentsRoute: AuthedStudentsRoute,
-  AuthedTimelineRoute: AuthedTimelineRoute,
+  AuthedStudentsRoute: AuthedStudentsRouteWithChildren,
   AuthedTodayRoute: AuthedTodayRoute,
   AuthedTestsTestIdRoute: AuthedTestsTestIdRouteWithChildren,
   AuthedTestsIndexRoute: AuthedTestsIndexRoute,

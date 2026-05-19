@@ -150,10 +150,11 @@ This is the differentiator phase. Status changes happen *here* — the post-test
 
 ## Phase E — Remaining milestones
 
-- **M5 (partial done)** — frozen `daily_session` + simple revision shipped 2026-05-19 (ADR 0020). Still owed: full Queue 2 stage machine + Queue 3 priority math (§7.2-7.3), mastery promotion + fail-downgrade in `submit_test`, streak coverage check against the new attempted-flag.
-- **M6** — Teacher dashboard + groups + invite codes.
-- **M7** — Timeline view, error detail modal (per-occurrence list + ghost-error reveal — ADR 0023), **Edit Memorization** (the deferred Settings flow — see `notes-for-future.md`), mobile sweep, PWA.
-- **M8** — QF User APIs (Bookmarks + Goals OAuth flow).
+- **M5 ✅ Complete (2026-05-19)** — frozen `daily_session` + simple revision shipped earlier (ADR 0020). M5 algorithm closure landed via migration `0020_m5_algorithm.sql` (ADR 0024): full Queue 2 stage machine + Queue 3 priority formula in `_compute_session_plan`; per-ayah `consecutive_clean_tests` rollup, fail-stage-reset, and `memorized → mastered` promotion in `submit_test`. Streak coverage check against `daily_session.attempted` deliberately deferred — current streak rule unchanged.
+- **M6 (core landed 2026-05-19; enrollment direction flipped same day, ADR 0028)** — Teacher Students route is a directory (groups as collapsible folders + Ungrouped). Inline group CRUD (no `/groups` route), Move-to-group menu. **Invite-code flow flipped**: teacher mints an 8-char Crockford code (`get_or_create_teacher_invite_code` / `rotate_teacher_invite_code`, 24h TTL, reusable), student joins via the new `/classroom` route (`enroll_via_code` now called by student). Drill-in `/students/$studentId` reuses M7's three cards via `studentId` prop + has a "Start test for this student" button wired to `TestCreationModal` in `enrolled_teacher` mode. Migration 0021. Servers `/api/tests/create` enrolled_teacher branch lit up (ADR 0027).
+- **M7 (core landed 2026-05-19)** — Reframed from "Timeline" to forward-looking **Progress** dashboard (`/progress` replaces `/timeline`): ForecastCard (next juz + full Quran at configured pace), ActivityStatsCard (7d/30d — memorized / reviewed / tests + pass rate), RevisionHealthGrid (juz staleness). Each card accepts `studentId?` so M6 drill-in reuses them. ADR 0025. Error detail modal landed on mushaf overlay taps (ADRs 0023 → 0026). Mobile sweep + PWA still owed (Polish work).
+- **M7.5** — Settings page (currently an EmptyState stub): daily capacity, completed-Quran flag, invite code, profile, hifz direction, **Edit Memorization** (reopens onboarding pre-populated — see `notes-for-future.md`). DESIGN.md §19.
+- **M8** — QF User APIs (Bookmarks + Goals OAuth flow). Adds the "Connect Quran.com" button inside the M7.5 Settings page.
 - **M9** — Mutashabihat (conditional).
 - **M10** — Seed data + demo prep.
 - **M11** — Video + submission.

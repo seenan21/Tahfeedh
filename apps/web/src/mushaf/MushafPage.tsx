@@ -119,6 +119,16 @@ export function MushafPage({
     );
   }, [header, pageNumber, pageInfo]);
 
+  // Must run on every render (no early-return before hooks) — React error #310.
+  const markerMap = useMemo<Map<string, OverlayMarker>>(() => {
+    const m = new Map<string, OverlayMarker>();
+    if (!overlays || overlays.length === 0 || overlayMode === 'none') return m;
+    for (const mk of getOverlayMarkers(pageNumber, overlays, overlayMode, quranIndex)) {
+      m.set(markerKey(mk), mk);
+    }
+    return m;
+  }, [overlays, overlayMode, pageNumber]);
+
   if (error) {
     return (
       <Center mih={200} px="md">
@@ -143,15 +153,6 @@ export function MushafPage({
   }
 
   const fontFamily = `'QPC V2 P${pageNumber}'`;
-
-  const markerMap = useMemo<Map<string, OverlayMarker>>(() => {
-    const m = new Map<string, OverlayMarker>();
-    if (!overlays || overlays.length === 0 || overlayMode === 'none') return m;
-    for (const mk of getOverlayMarkers(pageNumber, overlays, overlayMode, quranIndex)) {
-      m.set(markerKey(mk), mk);
-    }
-    return m;
-  }, [overlays, overlayMode, pageNumber]);
 
   function handleClick(e: React.MouseEvent<HTMLDivElement>) {
     const target = (e.target as HTMLElement).closest<HTMLElement>('[data-mushaf-word]');

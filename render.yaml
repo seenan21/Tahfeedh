@@ -1,0 +1,55 @@
+# Render Blueprint for the Tahfeedh backend (apps/server).
+# The frontend (apps/web) stays on Cloudflare Pages and points at this
+# service via VITE_API_BASE_URL.
+#
+# Apply via: Render dashboard -> New -> Blueprint -> point at this repo.
+# Secrets marked `sync: false` must be set in the dashboard before the
+# first deploy will succeed.
+
+services:
+  - type: web
+    name: tahfeedh-server
+    runtime: node
+    plan: starter
+    region: virginia
+    rootDir: .
+    buildCommand: npm install && npm run build:server
+    startCommand: node apps/server/dist/index.js
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+
+      # Only used to HMAC the short-lived QF OAuth state param, so a fresh
+      # value here has no persistent impact.
+      - key: SESSION_SECRET
+        generateValue: true
+
+      # Supabase
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+
+      # Quran Foundation
+      - key: QF_CLIENT_ID
+        sync: false
+      - key: QF_CLIENT_SECRET
+        sync: false
+      - key: QF_AUTH_URL
+        value: https://oauth2.quran.foundation
+      - key: QF_API_URL
+        value: https://apis.quran.foundation
+
+      # SERVER_BASE_URL must equal the Render-assigned https URL so the QF
+      # callback emitted by /api/qf-auth/authorize matches what QF redirects
+      # to (which must in turn be registered in the QF dashboard).
+      # WEB_ORIGIN must equal the Cloudflare Pages URL so CORS allows
+      # credentialed requests from the frontend.
+      - key: SERVER_BASE_URL
+        sync: false
+      - key: WEB_ORIGIN
+        sync: false

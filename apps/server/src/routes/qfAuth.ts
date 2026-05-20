@@ -5,6 +5,7 @@ import { verifyUser, AuthError } from '../auth/verifyUser.js';
 import { writeUserTokenRow, deleteUserTokenRow, readUserTokenRow } from '../qf/userTokens.js';
 
 export const qfAuthRouter = Router();
+export const qfCallbackRouter = Router();
 
 const SCOPES = [
   'openid',
@@ -16,7 +17,11 @@ const SCOPES = [
   'reading_session.create',
 ];
 
-const REDIRECT_URI = `${env.serverBaseUrl}/api/qf-auth/callback`;
+// Registered with QF as the allowed redirect URI. Lives at a different
+// path from the rest of the qf-auth router because QF's app config has
+// historically pinned `/auth/qf/callback`. The handler is mounted via
+// `qfCallbackRouter` below; the other endpoints stay under `/api/qf-auth`.
+const REDIRECT_URI = `${env.serverBaseUrl}/auth/qf/callback`;
 
 // =====================================================================
 // Stateless OAuth state encoding.
@@ -108,11 +113,13 @@ qfAuthRouter.post('/authorize', async (req, res, next) => {
 });
 
 // =====================================================================
-// GET /api/qf-auth/callback
+// GET /auth/qf/callback
 // Browser-redirect endpoint. Validates state, exchanges code + verifier,
 // upserts qf_user_token, redirects to the web app's /today with a flag.
+// Mounted at /auth/qf in index.ts to match the redirect_uri registered
+// with QF.
 // =====================================================================
-qfAuthRouter.get('/callback', async (req, res) => {
+qfCallbackRouter.get('/callback', async (req, res) => {
   const code = String(req.query.code ?? '');
   const state = String(req.query.state ?? '');
   const errorParam = req.query.error ? String(req.query.error) : null;

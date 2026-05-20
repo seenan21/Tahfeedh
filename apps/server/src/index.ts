@@ -3,7 +3,7 @@ import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import { env } from './env.js';
 import { qfRouter } from './routes/qf.js';
-import { qfAuthRouter } from './routes/qfAuth.js';
+import { qfAuthRouter, qfCallbackRouter } from './routes/qfAuth.js';
 import { qfUserRouter } from './routes/qfUser.js';
 import { onboardingRouter } from './routes/onboarding.js';
 import { testsRouter } from './routes/tests.js';
@@ -25,6 +25,7 @@ app.get('/health', (_req, res) => {
 
 app.use('/api/qf', qfRouter);
 app.use('/api/qf-auth', qfAuthRouter);
+app.use('/auth/qf', qfCallbackRouter);
 app.use('/api/qf-user', qfUserRouter);
 app.use('/api/onboarding', onboardingRouter);
 app.use('/api/tests', testsRouter);

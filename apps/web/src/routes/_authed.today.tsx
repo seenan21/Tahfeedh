@@ -81,7 +81,7 @@ function TodayPage() {
               margin: 0,
             }}
           >
-            اليوم
+            الرئيسية
           </Text>
           <Text
             component="h2"
@@ -94,7 +94,7 @@ function TodayPage() {
               margin: 0,
             }}
           >
-            Today
+            Home
           </Text>
         </Stack>
         <StreakBadge studentId={user.id} />

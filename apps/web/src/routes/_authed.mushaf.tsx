@@ -6,6 +6,7 @@ import {
   Group,
   NumberInput,
   SegmentedControl,
+  Select,
   Skeleton,
   Stack,
   Switch,
@@ -19,7 +20,7 @@ import type { OverlayMode } from '../mushaf/MushafPage';
 import type { OverlayMarker } from '../mushaf/getOverlayMarkers';
 import { homeRouteForRole } from '../lib/auth';
 import { supabase } from '../lib/supabase';
-import { quranIndex } from '../data/quran-data';
+import { CHAPTERS, chapter, quranIndex } from '../data/quran-data';
 import { ErrorDetailModal } from '../mushaf/ErrorDetailModal';
 import { MushafGrid } from '../mushaf/MushafGrid';
 import { MushafPage } from '../mushaf/MushafPage';
@@ -134,6 +135,32 @@ function MushafRoute() {
     return null;
   }, [selectedPage]);
 
+  // Drive the chapter Select value from the current page so prev/next/jump
+  // navigation keeps the dropdown in sync. Uses the page's `surah_start` —
+  // when a page straddles two surahs, the one beginning the page wins.
+  const currentSurah = useMemo<number | null>(() => {
+    if (selectedPage < 1) return null;
+    return quranIndex.pages[String(selectedPage)]?.surah_start ?? null;
+  }, [selectedPage]);
+
+  // Built once: `{value, label}` rows for all 114 chapters. Including the id
+  // in the searchable label means "2", "baqarah", and "البقرة" all match.
+  const chapterOptions = useMemo(
+    () =>
+      CHAPTERS.map((c) => ({
+        value: String(c.id),
+        label: `${c.id}. ${c.name_simple} · ${c.name_arabic}`,
+      })),
+    [],
+  );
+
+  function handleChapterChange(value: string | null) {
+    if (!value) return;
+    const ch = chapter(Number(value));
+    if (!ch) return;
+    setSelectedPage(ch.pages[0]);
+  }
+
   function goPrev() {
     setSelectedPage((p) => Math.max(1, p - 1));
   }
@@ -195,10 +222,32 @@ function MushafRoute() {
         </Group>
       </Stack>
 
-      {/* Reader toolbar */}
+      {/* Reader toolbar — three-column grid: chapter Select · page flipper · controls */}
       {viewMode === 'reader' && (
-        <Group justify="space-between" wrap="wrap" gap="sm" className={classes.toolbar}>
-          <Group gap={6} align="center">
+        <Box className={`${classes.toolbar} ${classes.toolbarGrid}`}>
+          <Box className={classes.toolbarLeft}>
+            <Select
+              size="xs"
+              w={260}
+              searchable
+              placeholder="Jump to surah…"
+              value={currentSurah != null ? String(currentSurah) : null}
+              onChange={handleChapterChange}
+              data={chapterOptions}
+              nothingFoundMessage="—"
+              comboboxProps={{ withinPortal: true, shadow: 'md' }}
+              styles={{
+                input: {
+                  background: 'rgba(255, 255, 193, 0.10)',
+                  borderColor: 'rgba(255, 255, 193, 0.22)',
+                  color: 'var(--mantine-color-parchment-0)',
+                },
+              }}
+              aria-label="Jump to surah"
+            />
+          </Box>
+
+          <Group className={classes.toolbarCenter} gap={6} align="center" wrap="nowrap">
             <Tooltip label="Previous page" withArrow>
               <ActionIcon
                 variant="default"
@@ -235,7 +284,7 @@ function MushafRoute() {
             </Tooltip>
           </Group>
 
-          <Group gap="md" align="center">
+          <Group className={classes.toolbarRight} gap="md" align="center" wrap="nowrap">
             <Switch
               size="sm"
               label="Show errors"
@@ -270,7 +319,7 @@ function MushafRoute() {
               />
             </Group>
           </Group>
-        </Group>
+        </Box>
       )}
 
       {/* Main canvas */}

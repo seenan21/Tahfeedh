@@ -16,6 +16,7 @@ import { AlertCircle, ChevronDown, LogOut, Settings as SettingsIcon, User } from
 import { getCurrentUser, signOut } from '../lib/auth';
 import { supabase } from '../lib/supabase';
 import { AppSidebar } from '../components/AppSidebar';
+import { useQfStatus } from '../features/integrations/useQfStatus';
 
 interface InProgressTestRow {
   id: string;
@@ -115,6 +116,10 @@ function AuthedLayout() {
     refetchInterval: 15_000,
   });
 
+  // QF connection state drives the header pill. Only students see Connect;
+  // the query no-ops gracefully for teachers (returns connected:false).
+  const { data: qfStatus } = useQfStatus();
+
   const elapsed = useElapsed(inProgressTest?.started_at);
 
   // Flash the banner when the route guard bounces the student back to the
@@ -186,6 +191,33 @@ function AuthedLayout() {
             <Badge variant="dot" color="sage.7" size="sm" radius="sm">
               {user.role === 'student' ? 'Hifz student' : 'Hifz teacher'}
             </Badge>
+            {qfStatus?.connected && (
+              <Badge
+                size="sm"
+                radius="sm"
+                variant="light"
+                styles={{
+                  root: {
+                    background: 'rgba(14, 124, 92, 0.12)',
+                    color: '#0E7C5C',
+                    border: '1px solid rgba(14, 124, 92, 0.28)',
+                  },
+                }}
+                leftSection={
+                  <span
+                    style={{
+                      display: 'inline-block',
+                      width: 6,
+                      height: 6,
+                      borderRadius: '50%',
+                      background: '#0E7C5C',
+                    }}
+                  />
+                }
+              >
+                Connected to Quran.com
+              </Badge>
+            )}
           </Group>
 
           {inProgressTest && (

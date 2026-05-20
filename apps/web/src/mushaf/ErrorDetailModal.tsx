@@ -18,6 +18,7 @@ import { scopeOfErrorType } from '@tahfeedh/shared';
 import { supabase } from '../lib/supabase';
 import { chapter } from '../data/quran-data';
 import { ERROR_TYPE_COLOR, type OverlayMarker } from './getOverlayMarkers';
+import { VerseAudioPlayer } from './VerseAudioPlayer';
 
 interface ErrorDetailModalProps {
   studentId: string;
@@ -215,6 +216,14 @@ export function ErrorDetailModal({
       radius="lg"
       centered
     >
+      {marker && (
+        <Stack gap={6} mb="sm">
+          <Text size="xs" tt="uppercase" c="dimmed" fw={700} lts={0.8}>
+            Listen to this verse
+          </Text>
+          <VerseAudioPlayer surah={marker.surah} ayah={marker.ayah} />
+        </Stack>
+      )}
       {isLoading || !grouped ? (
         <Stack gap="sm">
           <Skeleton height={64} radius="md" />

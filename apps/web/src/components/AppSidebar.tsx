@@ -21,7 +21,7 @@ interface NavItem {
 }
 
 const STUDENT_NAV: NavItem[] = [
-  { label: 'Today',     arabic: 'اليوم',     to: '/today',     icon: Sun },
+  { label: 'Home',      arabic: 'الرئيسية',   to: '/today',     icon: Sun },
   { label: 'Tests',     arabic: 'الاختبارات', to: '/tests',     icon: GraduationCap },
   { label: 'Progress',  arabic: 'التقدم',    to: '/progress',  icon: TrendingUp },
   { label: 'My Mushaf', arabic: 'مصحفي',     to: '/mushaf',    icon: BookOpen },

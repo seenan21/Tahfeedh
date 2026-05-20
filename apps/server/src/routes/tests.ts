@@ -9,6 +9,7 @@ import { verifyUser, AuthError } from '../auth/verifyUser.js';
 import { supabaseAdmin } from '../supabase.js';
 import { resolveTestRanges } from '../pipelines/post-test/resolve.js';
 import { pushBookmark } from '../qf/bookmarks.js';
+import { pushNote } from '../qf/notes.js';
 import quranIndexJson from '../data/quran-index.json' with { type: 'json' };
 
 const quranIndex = quranIndexJson as unknown as QuranIndex;
@@ -154,6 +155,17 @@ testsRouter.post('/:id/error', async (req, res, next) => {
       res.status(500).json({ error: error.message });
       return;
     }
+
+    // Fire-and-forget sync of the teacher's note to QF Notes. Never blocks
+    // the response; failures are logged inside pushNote.
+    if (body.teacher_note && body.teacher_note.trim().length > 0) {
+      void pushNote(testRow.student_id, {
+        body: body.teacher_note,
+        surah: body.surah,
+        ayah: body.ayah,
+      });
+    }
+
     res.json({ id: data.id, signature: data.signature });
   } catch (err) {
     if (err instanceof AuthError) {

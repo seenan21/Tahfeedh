@@ -2,12 +2,16 @@ import { env } from '../env.js';
 import { getUserAccessToken } from './userTokens.js';
 
 /**
- * Fire-and-forget push of a single bookmark to QF. Never throws — failure to
- * sync should not break the post-test pipeline or onboarding (DESIGN.md §13.6).
+ * Fire-and-forget push of the student's frontier ayah to QF as their
+ * "currently reading" bookmark. Never throws — sync failure must not break
+ * the post-test pipeline or onboarding (DESIGN.md §13.6).
  *
- * Per the QF Bookmarks API shape (best-effort): POST /auth/v1/bookmarks with
- * a verse_key body. The exact shape is light on public docs; if QF rejects,
- * we log the response body for future inspection without surfacing to the user.
+ * Endpoint per QF docs:
+ *   POST /v1/collections/__default__/bookmarks
+ * Body shape inferred from the response schema (camelCase, type=ayah).
+ *   isReading=true: "set the user's singleton reading bookmark and replace
+ *   any previous reading bookmark." That's our semantic — we don't want
+ *   one bookmark per test, we want "where they are now."
  */
 export async function pushBookmark(
   userId: string,
@@ -18,7 +22,7 @@ export async function pushBookmark(
     if (!token) return; // not connected, skip silently
 
     const verseKey = `${ayah.surah}:${ayah.ayah}`;
-    const url = `${env.qfApiUrl}/auth/v1/bookmarks`;
+    const url = `${env.qfApiUrl}/v1/collections/__default__/bookmarks`;
     const res = await fetch(url, {
       method: 'POST',
       headers: {
@@ -27,7 +31,12 @@ export async function pushBookmark(
         'Content-Type': 'application/json',
         Accept: 'application/json',
       },
-      body: JSON.stringify({ verse_key: verseKey, key: verseKey }),
+      body: JSON.stringify({
+        type: 'ayah',
+        key: ayah.surah,
+        verseNumber: ayah.ayah,
+        isReading: true,
+      }),
     });
     if (!res.ok) {
       const text = await res.text().catch(() => '');

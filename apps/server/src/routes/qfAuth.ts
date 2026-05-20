@@ -10,11 +10,9 @@ export const qfCallbackRouter = Router();
 const SCOPES = [
   'openid',
   'offline_access',
-  'profile',
   'bookmark',
   'goal',
   'streak.read',
-  'reading_session.create',
 ];
 
 // Registered with QF as the allowed redirect URI. Lives at a different

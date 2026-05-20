@@ -24,9 +24,9 @@ import {
   Copy as CopyIcon,
   Flame,
   Folder,
+  FolderInput,
   FolderPlus,
   MoreVertical,
-  Move,
   Pencil,
   RefreshCw,
   Share2,
@@ -276,24 +276,10 @@ interface LastTestRow {
   ended_at: string | null;
 }
 
-interface TodayStatusRow {
-  status: 'complete' | 'partial' | 'pending';
-}
-
 async function fetchStreak(studentId: string): Promise<number> {
   const { data, error } = await supabase.rpc('daily_streak', { p_student_id: studentId });
   if (error) return 0;
   return typeof data === 'number' ? data : 0;
-}
-
-async function fetchTodayStatus(studentId: string): Promise<TodayStatusRow | null> {
-  const { data, error } = await supabase.rpc('session_status_today', {
-    p_student_id: studentId,
-    p_date: new Date().toISOString().slice(0, 10),
-  });
-  if (error) return null;
-  const row = Array.isArray(data) ? data[0] : data;
-  return row ? { status: row.status } : null;
 }
 
 async function fetchLastTest(studentId: string): Promise<LastTestRow | null> {
@@ -325,11 +311,6 @@ function StudentRow({
     queryFn: () => fetchStreak(student.studentId),
     staleTime: 60_000,
   });
-  const { data: todayStatus } = useQuery({
-    queryKey: ['teacher_student_today_status', student.studentId],
-    queryFn: () => fetchTodayStatus(student.studentId),
-    staleTime: 60_000,
-  });
   const { data: lastTest } = useQuery({
     queryKey: ['teacher_student_last_test', student.studentId],
     queryFn: () => fetchLastTest(student.studentId),
@@ -349,26 +330,38 @@ function StudentRow({
     },
   });
 
-  const statusBadge = todayStatusBadge(todayStatus?.status ?? 'pending');
   const display = student.displayName ?? 'Unnamed student';
 
+  const goToDrillIn = () =>
+    navigate({ to: '/students/$studentId', params: { studentId: student.studentId } });
+
   return (
-    <Group
-      justify="space-between"
-      align="center"
-      p="sm"
-      wrap="nowrap"
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={goToDrillIn}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          goToDrillIn();
+        }
+      }}
       style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: 8,
+        padding: 12,
+        flexWrap: 'nowrap',
         borderRadius: 10,
         background: 'rgba(255,255,255,0.55)',
         border: '1px solid rgba(21,53,30,0.06)',
         cursor: 'pointer',
+        width: '100%',
+        textAlign: 'left',
       }}
-      onClick={() =>
-        navigate({ to: '/students/$studentId', params: { studentId: student.studentId } })
-      }
     >
-      <Group gap="sm" align="center" wrap="nowrap" style={{ minWidth: 0 }}>
+      <Group gap="sm" align="center" wrap="nowrap" style={{ minWidth: 0, flex: 1 }}>
         <div
           style={{
             width: 36,
@@ -382,6 +375,7 @@ function StudentRow({
             justifyContent: 'center',
             fontFamily: '"Playfair Display", serif',
             fontWeight: 700,
+            flexShrink: 0,
           }}
         >
           {(display.trim().charAt(0) || '?').toUpperCase()}
@@ -405,15 +399,16 @@ function StudentRow({
           </Group>
         </Stack>
       </Group>
-      <Group gap="xs" align="center" wrap="nowrap" onClick={(e) => e.stopPropagation()}>
-        <Badge size="sm" variant="light" color={statusBadge.color}>
-          {statusBadge.label}
-        </Badge>
+      <div
+        onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => e.stopPropagation()}
+        style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}
+      >
         <Menu shadow="md" width={200} position="bottom-end" withArrow>
           <Menu.Target>
             <Tooltip label="Move to group">
               <ActionIcon variant="subtle" size="sm" aria-label="Move student to group">
-                <Move size={14} />
+                <FolderInput size={14} />
               </ActionIcon>
             </Tooltip>
           </Menu.Target>
@@ -437,18 +432,9 @@ function StudentRow({
             </Menu.Item>
           </Menu.Dropdown>
         </Menu>
-      </Group>
-    </Group>
+      </div>
+    </div>
   );
-}
-
-function todayStatusBadge(status: 'complete' | 'partial' | 'pending'): {
-  color: string;
-  label: string;
-} {
-  if (status === 'complete') return { color: 'sage', label: '✓ today' };
-  if (status === 'partial') return { color: 'honey', label: 'partial' };
-  return { color: 'gray', label: 'pending' };
 }
 
 function relativeTime(iso: string): string {

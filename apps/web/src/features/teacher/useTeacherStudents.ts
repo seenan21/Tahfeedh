@@ -1,5 +1,5 @@
-import { useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useEffect, useMemo } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../../lib/supabase';
 
 export interface TeacherStudent {
@@ -68,11 +68,38 @@ async function fetchGroups(teacherId: string): Promise<StudentGroupRow[]> {
 }
 
 export function useTeacherStudents(teacherId: string) {
+  const queryClient = useQueryClient();
+
   const enrollmentsQuery = useQuery({
     queryKey: ['teacher_enrollments', teacherId],
     queryFn: () => fetchEnrollments(teacherId),
     staleTime: 30_000,
   });
+
+  // ADR 0029: live-update the directory when a student joins (or leaves) via
+  // an invite code. RLS gates payload visibility to this teacher's rows.
+  useEffect(() => {
+    if (!teacherId) return;
+    const channel = supabase
+      .channel(`teacher-enrollment-${teacherId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'enrollment',
+          filter: `teacher_id=eq.${teacherId}`,
+        },
+        () => {
+          void queryClient.invalidateQueries({ queryKey: ['teacher_enrollments', teacherId] });
+          void queryClient.invalidateQueries({ queryKey: ['teacher_student_users', teacherId] });
+        },
+      )
+      .subscribe();
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [teacherId, queryClient]);
 
   const studentIds = useMemo(
     () => (enrollmentsQuery.data ?? []).map((e) => e.student_id),

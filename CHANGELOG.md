@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+### Changed — Teacher directory polish (ADR 0029)
+- **Migration `0022_realtime_enrollment.sql`.** `alter publication supabase_realtime add table enrollment;` — first realtime surface in the app. The teacher directory now reflects student joins live without a refresh.
+- **`apps/web/src/features/teacher/useTeacherStudents.ts`** — opens a Supabase Realtime channel `teacher-enrollment-<teacherId>` on `postgres_changes` (event `*`) filtered by `teacher_id=eq.<id>`. Any event invalidates `teacher_enrollments` + `teacher_student_users`. Channel torn down on unmount.
+- **`apps/web/src/routes/_authed.students.tsx`** — `StudentRow` rewritten:
+  - Removed the today-status badge (`session_status_today` RPC + `fetchTodayStatus` + `todayStatusBadge` helper). The "pending" label was misread as enrollment-pending.
+  - Outer wrapper is now a native `<div role="button" tabIndex={0}>` with explicit `onClick` + `onKeyDown` (Enter / Space) — whole row clickable, keyboard-navigable. Kebab-menu wrapper keeps `stopPropagation`.
+  - Per-row menu trigger icon swapped `Move` → `FolderInput` (was reading as drag-to-reorder).
+- **ADR 0029** captures the realtime pattern (first in the app), the row-click refactor, and the rationale for dropping today-status from the directory.
+
 ### Changed — Enrollment direction flip + Classroom tab (ADR 0028)
 - **Migration `0021_invite_code_flip.sql` (applied).** Drops `student_code` (table, `ensure_student_code` trigger, `generate_invite_code` helper). New `teacher_invite_code` table — 8-char Crockford-ish codes (alphabet `ABCDEFGHJKLMNPQRSTUVWXYZ23456789`, no 0/O/1/I/L), reusable, 24-hour TTL. RLS `tic_owner` lets the teacher manage their own codes; students never touch the table directly.
 - **New RPCs** (all `SECURITY DEFINER`): `get_or_create_teacher_invite_code()` returns the teacher's current live code (mints if none); `rotate_teacher_invite_code()` revokes the active code + mints a fresh one; `leave_teacher(p_teacher_id)` flips the caller's enrollment to `'paused'` so existing `is_my_student()` RLS revokes the teacher's data access immediately.

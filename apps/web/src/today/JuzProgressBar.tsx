@@ -24,12 +24,17 @@ async function fetchPages(studentId: string): Promise<MemorizedPageRow[]> {
   return (data as MemorizedPageRow[] | null) ?? [];
 }
 
-function deriveJuzStatuses(rows: MemorizedPageRow[]): Map<number, JuzStatus> {
-  const result = new Map<number, JuzStatus>();
+interface JuzInfo {
+  status: JuzStatus;
+  pagesLeft: number;
+}
+
+function deriveJuzStatuses(rows: MemorizedPageRow[]): Map<number, JuzInfo> {
+  const result = new Map<number, JuzInfo>();
   for (let j = 1; j <= 30; j++) {
     const info = quranIndex.juzs[String(j)];
     if (!info) {
-      result.set(j, 'untouched');
+      result.set(j, { status: 'untouched', pagesLeft: 0 });
       continue;
     }
     const [start, end] = info.pages;
@@ -44,10 +49,15 @@ function deriveJuzStatuses(rows: MemorizedPageRow[]): Map<number, JuzStatus> {
       else if (r.status === 'in_progress') inProgress += 1;
     }
     const filled = mastered + memorized + inProgress;
-    if (mastered >= juzLen) result.set(j, 'mastered');
-    else if (mastered + memorized >= juzLen) result.set(j, 'memorized');
-    else if (filled > 0) result.set(j, 'in_progress');
-    else result.set(j, 'untouched');
+    let status: JuzStatus;
+    if (mastered >= juzLen) status = 'mastered';
+    else if (mastered + memorized >= juzLen) status = 'memorized';
+    else if (filled > 0) status = 'in_progress';
+    else status = 'untouched';
+    // Pages-left counts pages not yet at memorized/mastered. in_progress pages
+    // still count as remaining work for the juz.
+    const pagesLeft = Math.max(0, juzLen - (mastered + memorized));
+    result.set(j, { status, pagesLeft });
   }
   return result;
 }
@@ -82,7 +92,7 @@ export function JuzProgressBar({ studentId }: JuzProgressBarProps) {
   const counts: Record<JuzStatus, number> = {
     mastered: 0, memorized: 0, in_progress: 0, untouched: 0,
   };
-  for (const s of statuses.values()) counts[s] += 1;
+  for (const v of statuses.values()) counts[v.status] += 1;
 
   const completed = counts.mastered + counts.memorized;
 
@@ -114,42 +124,64 @@ export function JuzProgressBar({ studentId }: JuzProgressBarProps) {
       >
         {Array.from({ length: 30 }, (_, i) => {
           const juz = i + 1;
-          const status = statuses.get(juz) ?? 'untouched';
-          const c = STATUS_COLORS[status];
+          const info = statuses.get(juz) ?? { status: 'untouched' as JuzStatus, pagesLeft: 0 };
+          const c = STATUS_COLORS[info.status];
+          const isIncomplete = info.status === 'in_progress' || info.status === 'untouched';
           return (
             <Tooltip
               key={juz}
-              label={`Juz ${juz} — ${STATUS_LABEL[status]}`}
+              label={
+                isIncomplete
+                  ? `Juz ${juz} — ${STATUS_LABEL[info.status]} · ${info.pagesLeft} page${info.pagesLeft === 1 ? '' : 's'} left`
+                  : `Juz ${juz} — ${STATUS_LABEL[info.status]}`
+              }
               position="top"
               withArrow
               openDelay={150}
             >
-              <div
-                style={{
-                  aspectRatio: '1 / 1.4',
-                  borderRadius: 4,
-                  background: c.bg,
-                  color: c.fg,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: 10,
-                  fontWeight: 600,
-                  boxShadow:
-                    status === 'untouched'
-                      ? 'inset 0 0 0 1px rgba(21,53,30,0.06)'
-                      : '0 1px 2px rgba(21,53,30,0.18)',
-                  transition: 'transform 180ms cubic-bezier(0.4,0,0.2,1)',
-                  cursor: 'default',
-                }}
-                onMouseEnter={(e) => {
-                  (e.currentTarget as HTMLDivElement).style.transform = 'translateY(-2px)';
-                }}
-                onMouseLeave={(e) => {
-                  (e.currentTarget as HTMLDivElement).style.transform = '';
-                }}
-              >
-                {juz}
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: 2 }}>
+                <div
+                  style={{
+                    aspectRatio: '1 / 1.4',
+                    borderRadius: 4,
+                    background: c.bg,
+                    color: c.fg,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: 10,
+                    fontWeight: 600,
+                    boxShadow:
+                      info.status === 'untouched'
+                        ? 'inset 0 0 0 1px rgba(21,53,30,0.06)'
+                        : '0 1px 2px rgba(21,53,30,0.18)',
+                    transition: 'transform 180ms cubic-bezier(0.4,0,0.2,1)',
+                    cursor: 'default',
+                  }}
+                  onMouseEnter={(e) => {
+                    (e.currentTarget as HTMLDivElement).style.transform = 'translateY(-2px)';
+                  }}
+                  onMouseLeave={(e) => {
+                    (e.currentTarget as HTMLDivElement).style.transform = '';
+                  }}
+                >
+                  {juz}
+                </div>
+                {isIncomplete ? (
+                  <Text
+                    size="9px"
+                    c="dimmed"
+                    ta="center"
+                    fw={600}
+                    style={{ fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}
+                  >
+                    {info.pagesLeft}
+                  </Text>
+                ) : (
+                  <Text size="9px" ta="center" style={{ lineHeight: 1, opacity: 0 }}>
+                    &nbsp;
+                  </Text>
+                )}
               </div>
             </Tooltip>
           );

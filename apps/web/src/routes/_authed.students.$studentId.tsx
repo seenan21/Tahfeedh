@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router';
 import {
-  Anchor,
   Badge,
   Button,
   Card,
@@ -11,7 +10,7 @@ import {
   Stack,
   Text,
 } from '@mantine/core';
-import { ArrowLeft, Flame, GraduationCap, History, Play } from 'lucide-react';
+import { ArrowLeft, BookOpenText, Flame, GraduationCap, History, Play } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import type { TestRating, TestType } from '@tahfeedh/shared';
 import { homeRouteForRole } from '../lib/auth';
@@ -20,6 +19,8 @@ import { ActivityStatsCard } from '../features/progress/ActivityStatsCard';
 import { ForecastCard } from '../features/progress/ForecastCard';
 import { RevisionHealthGrid } from '../features/progress/RevisionHealthGrid';
 import { TestCreationModal } from '../features/live-test/TestCreationModal';
+import { JuzProgressBar } from '../today/JuzProgressBar';
+import { SessionPlanCard } from '../today/SessionPlanCard';
 
 export const Route = createFileRoute('/_authed/students/$studentId')({
   beforeLoad: ({ context }) => {
@@ -145,16 +146,21 @@ function StudentDrillIn() {
 
   return (
     <Stack maw={1080} mx="auto" gap="xl" py="md">
-      {/* Header */}
-      <Stack gap="sm">
-        <Anchor
-          size="xs"
-          c="parchment.0"
-          style={{ opacity: 0.85 }}
+      {/* Back to directory — prominent, full button */}
+      <Group>
+        <Button
+          variant="white"
+          color="dark"
+          size="sm"
+          leftSection={<ArrowLeft size={16} />}
           onClick={() => navigate({ to: '/students' })}
         >
-          ← Students
-        </Anchor>
+          Back to Students
+        </Button>
+      </Group>
+
+      {/* Header */}
+      <Stack gap="sm">
         <Group justify="space-between" align="flex-end" wrap="wrap" gap="lg">
           <Stack gap={4}>
             <Text
@@ -188,8 +194,9 @@ function StudentDrillIn() {
             </Group>
           </Stack>
           <Button
-            color="sage"
-            leftSection={<Play size={14} />}
+            color="honey.7"
+            size="md"
+            leftSection={<Play size={16} />}
             onClick={() => setTestModalOpen(true)}
           >
             Start test for this student
@@ -197,13 +204,29 @@ function StudentDrillIn() {
         </Group>
       </Stack>
 
+      {/* Hifz tracker */}
+      <Card padding="xl" radius="xl" shadow="xl">
+        <JuzProgressBar studentId={studentId} />
+      </Card>
+
+      {/* Today's session (read-only) */}
+      <Card padding="xl" radius="xl" shadow="xl">
+        <Group gap={8} align="center" mb="sm">
+          <BookOpenText size={16} color="var(--mantine-color-sage-7)" strokeWidth={2.2} />
+          <Text size="xs" tt="uppercase" c="dimmed" fw={700} lts={0.8}>
+            Today's session · what to test
+          </Text>
+        </Group>
+        <SessionPlanCard studentId={studentId} readOnly />
+      </Card>
+
       {/* Forecast + Activity row */}
       <Group align="stretch" wrap="wrap" gap="xl" grow>
         <Card padding="xl" radius="xl" shadow="xl" style={{ flex: '1 1 360px', minWidth: 320 }}>
-          <ForecastCard studentId={studentId} />
+          <ForecastCard studentId={studentId} isOwnView={false} />
         </Card>
         <Card padding="xl" radius="xl" shadow="xl" style={{ flex: '1 1 360px', minWidth: 320 }}>
-          <ActivityStatsCard studentId={studentId} />
+          <ActivityStatsCard studentId={studentId} viewerTeacherId={user.id} />
         </Card>
       </Group>
 

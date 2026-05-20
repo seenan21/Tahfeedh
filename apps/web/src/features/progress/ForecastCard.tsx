@@ -9,6 +9,10 @@ import { computeForecast } from './lib/forecast';
 
 interface ForecastCardProps {
   studentId: string;
+  // True when the student is viewing their own forecast; false when a teacher
+  // is viewing one of their students. Default true preserves the original
+  // ADR 0025 callsite contract.
+  isOwnView?: boolean;
 }
 
 interface MemorizedPageRow {
@@ -54,7 +58,7 @@ function formatDaysAway(days: number): string {
   return `in ~${years} yr${years === 1 ? '' : 's'}`;
 }
 
-export function ForecastCard({ studentId }: ForecastCardProps) {
+export function ForecastCard({ studentId, isOwnView = true }: ForecastCardProps) {
   const { data: pages, isLoading: pagesLoading } = useQuery({
     queryKey: ['memorization_pages', studentId],
     queryFn: () => fetchPages(studentId),
@@ -167,7 +171,9 @@ export function ForecastCard({ studentId }: ForecastCardProps) {
           </Group>
 
           <Text size="xs" c="dimmed" ta="center" mt={4}>
-            At your configured pace of {pace} {pace === 1 ? 'page' : 'pages'}/day. Adjust in Settings.
+            {isOwnView
+              ? `At your configured pace of ${pace} ${pace === 1 ? 'page' : 'pages'}/day. Adjust in Settings.`
+              : `Student's configured pace · ${pace} ${pace === 1 ? 'page' : 'pages'}/day. Only the student can change this.`}
           </Text>
         </Stack>
       )}

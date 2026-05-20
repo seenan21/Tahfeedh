@@ -21,6 +21,10 @@ import {
 
 interface ActivityStatsCardProps {
   studentId: string;
+  // When set, the tests metric filters to tests this teacher administered and
+  // the row relabels to "Tests taken with you". Drill-in usage; omitted on the
+  // student's own /progress view.
+  viewerTeacherId?: string;
 }
 
 interface ReviewedRow {
@@ -64,13 +68,16 @@ async function fetchPagesReviewed(studentId: string, sinceIso: string): Promise<
 async function fetchTestsInWindow(
   studentId: string,
   sinceIso: string,
+  viewerTeacherId: string | undefined,
 ): Promise<{ total: number; passed: number }> {
-  const { data, error } = await supabase
+  let query = supabase
     .from('test')
     .select('rating')
     .eq('student_id', studentId)
     .eq('status', 'completed')
     .gte('ended_at', sinceIso);
+  if (viewerTeacherId) query = query.eq('teacher_id', viewerTeacherId);
+  const { data, error } = await query;
   if (error) throw error;
   const rows = (data as TestRow[] | null) ?? [];
   let passed = 0;
@@ -92,7 +99,7 @@ function pageForAyah(surah: number, ayah: number): number | null {
   return null;
 }
 
-export function ActivityStatsCard({ studentId }: ActivityStatsCardProps) {
+export function ActivityStatsCard({ studentId, viewerTeacherId }: ActivityStatsCardProps) {
   const [window, setWindow] = useState<ActivityWindow>('7d');
   const since = cutoffIso(window);
 
@@ -107,8 +114,8 @@ export function ActivityStatsCard({ studentId }: ActivityStatsCardProps) {
     staleTime: 30_000,
   });
   const testsQuery = useQuery({
-    queryKey: ['activity_tests', studentId, window],
-    queryFn: () => fetchTestsInWindow(studentId, since),
+    queryKey: ['activity_tests', studentId, window, viewerTeacherId ?? null],
+    queryFn: () => fetchTestsInWindow(studentId, since, viewerTeacherId),
     staleTime: 30_000,
   });
 
@@ -166,11 +173,13 @@ export function ActivityStatsCard({ studentId }: ActivityStatsCardProps) {
           />
           <StatRow
             icon={<ClipboardCheck size={18} color="var(--mantine-color-mihrab-9)" />}
-            label="Tests taken"
+            label={viewerTeacherId ? 'Tests taken with you' : 'Tests taken'}
             value={String(stats.testsCompleted)}
             sub={
               stats.testsCompleted === 0
-                ? 'no tests yet'
+                ? viewerTeacherId
+                  ? 'no tests with you yet'
+                  : 'no tests yet'
                 : `${Math.round(stats.passRate * 100)}% pass rate`
             }
           />

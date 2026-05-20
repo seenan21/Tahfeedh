@@ -17,6 +17,10 @@ import { PlanRow } from './PlanRow';
 
 interface SessionPlanCardProps {
   studentId: string;
+  // When true: hide the celebration footer with "Load next session" and the
+  // bottom hint about tests being the only queue-mover. Used by the teacher
+  // drill-in to render the student's plan read-only.
+  readOnly?: boolean;
 }
 
 const TODAY_SESSION_KEY = (studentId: string) => ['today_session', studentId];
@@ -39,7 +43,7 @@ async function callLoadNextSession(studentId: string): Promise<TodaySession | nu
   return rows[0] ?? null;
 }
 
-export function SessionPlanCard({ studentId }: SessionPlanCardProps) {
+export function SessionPlanCard({ studentId, readOnly = false }: SessionPlanCardProps) {
   const queryClient = useQueryClient();
   const { data: session, isLoading, isError } = useQuery({
     queryKey: TODAY_SESSION_KEY(studentId),
@@ -176,7 +180,7 @@ export function SessionPlanCard({ studentId }: SessionPlanCardProps) {
       )}
 
       {/* Footer */}
-      {session.all_attempted ? (
+      {readOnly ? null : session.all_attempted ? (
         <Stack
           gap="sm"
           align="center"

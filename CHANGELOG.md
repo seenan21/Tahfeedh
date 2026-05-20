@@ -2,6 +2,18 @@
 
 ## [Unreleased]
 
+### Added — Teacher drill-in expansion (ADR 0032)
+- **`apps/web/src/features/progress/ForecastCard.tsx`** — new `isOwnView?: boolean` prop (default true). When false, the pace-hint swaps from "Adjust in Settings" to "Only the student can change this." Used by the teacher drill-in.
+- **`apps/web/src/features/progress/ActivityStatsCard.tsx`** — new `viewerTeacherId?: string` prop. When set, `fetchTestsInWindow` adds `.eq('teacher_id', viewerTeacherId)` and the row relabels to "Tests taken with you" (with adapted sub-text). Cache key includes the teacher id so self-view + teacher-view caches don't collide.
+- **`apps/web/src/today/SessionPlanCard.tsx`** — new `readOnly?: boolean` prop. When true, hides the celebration footer with the "Load next session" CTA + the bottom hint. Used by the teacher drill-in's read-only "what to test next" surface.
+- **`apps/web/src/today/JuzProgressBar.tsx`** — derivation now returns `{ status, pagesLeft }` per juz; pages-left count renders under each incomplete cell (in_progress + untouched); tooltip extended with the count. Applies to both `/today` and the teacher drill-in (first cross-route reuse of a `today/` component).
+- **`apps/web/src/routes/_authed.students.$studentId.tsx`**:
+  - Mounts `JuzProgressBar` (hifz tracker) and read-only `SessionPlanCard` (today's session — what to test next) above the existing forecast/activity row.
+  - Passes `isOwnView={false}` to ForecastCard and `viewerTeacherId={user.id}` to ActivityStatsCard.
+  - "Start test for this student" CTA → `color="honey.7"`, `size="md"` (was sage).
+  - Back link → full `<Button variant="white" color="dark" leftSection={<ArrowLeft/>}>Back to Students</Button>` (was a tiny anchor).
+- **ADR 0032** captures the viewer-context prop pattern, the today-component reuse, and the pages-left annotation.
+
 ### Fixed / Added — Teacher `/tests` history + students route nesting (ADR 0031)
 - **Renamed `apps/web/src/routes/_authed.students.tsx` → `_authed.students.index.tsx`.** TanStack file-routing was treating the `.tsx` as a layout parent of `_authed.students.$studentId.tsx`. The directory page had no `<Outlet />` so clicking a student row updated the URL but the drill-in never rendered. As an `index` file it becomes a sibling of `$studentId` under `_authed`, same shape as the tests routes. `routeTree.gen.ts` regenerated.
 - **`apps/web/src/routes/_authed.tests.index.tsx`** — `TestsPage` now branches on `user.role`. Student branch unchanged. Teacher branch is a new `TeacherTestsHistory` component: 30 most-recent completed tests where `teacher_id = self.id`, student name on each row (separate `app_user.display_name` fetch keyed by collected `student_id`s), New-lesson/Revision badge, range + relative time, rating badge, whole row clickable → `/tests/$testId/recap`. No self-test CTA, no sparkline. Test creation stays where M6 put it: the drill-in's "Start test for this student" button.

@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+### Fixed — Teacher drill-in: today's session + recent tests load (ADR 0033)
+- **Migration `0024_teacher_session_and_test_reads.sql`.** Two openings so the teacher's read of student data isn't crippled:
+  - New `test_teacher_select_student` SELECT policy on `test` — `using (is_my_student(student_id))`. The teacher can now read every completed test for an actively enrolled student (self-tests, other-teacher tests, this-teacher tests). The existing `test_teacher_all` policy still gates writes to teacher-administered, so this is read-only widening.
+  - `today_session(p_student_id)` guard relaxed from `p_student_id <> auth.uid() → forbidden` to also allow `is_my_student(p_student_id)`. Body unchanged from 0018; read-or-create idempotent semantics intact.
+- Knock-on: `daily_streak`, `session_status_today`, the drill-in's "Recent tests" query, and the ActivityStatsCard test count (with `viewerTeacherId` filter) all work correctly for teacher-viewed students now.
+- `load_next_session` + `next_new_lesson` deliberately left student-only — those are real writes that advance the queue.
+- **ADR 0033** captures the openings + rejected alternatives.
+
 ### Added — Teacher drill-in expansion (ADR 0032)
 - **`apps/web/src/features/progress/ForecastCard.tsx`** — new `isOwnView?: boolean` prop (default true). When false, the pace-hint swaps from "Adjust in Settings" to "Only the student can change this." Used by the teacher drill-in.
 - **`apps/web/src/features/progress/ActivityStatsCard.tsx`** — new `viewerTeacherId?: string` prop. When set, `fetchTestsInWindow` adds `.eq('teacher_id', viewerTeacherId)` and the row relabels to "Tests taken with you" (with adapted sub-text). Cache key includes the teacher id so self-view + teacher-view caches don't collide.

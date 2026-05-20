@@ -6,12 +6,14 @@ import {
   Card,
   Container,
   Group,
+  Loader,
   Stack,
   Text,
   Title,
   UnstyledButton,
 } from '@mantine/core';
-import { GraduationCap, Sparkles } from 'lucide-react';
+import { ClipboardList, GraduationCap, Sparkles } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import type { TestRange, TestRating, TestStatus, TestType } from '@tahfeedh/shared';
 import { supabase } from '../lib/supabase';
 import { TestCreationModal } from '../features/live-test/TestCreationModal';
@@ -33,6 +35,12 @@ export const Route = createFileRoute('/_authed/tests/')({
 });
 
 function TestsPage() {
+  const { user } = Route.useRouteContext();
+  if (user.role === 'teacher') return <TeacherTestsHistory teacherId={user.id} />;
+  return <StudentTestsLanding />;
+}
+
+function StudentTestsLanding() {
   const navigate = useNavigate();
   const { user } = Route.useRouteContext();
   const [opened, setOpened] = useState(false);
@@ -369,4 +377,142 @@ function ratingColor(r: TestRating): string {
     case 'fail':
       return 'brick.6';
   }
+}
+
+interface TeacherTestRow extends RecentTestRow {
+  student_id: string;
+}
+
+interface TeacherHistoryResult {
+  tests: TeacherTestRow[];
+  studentNames: Map<string, string>;
+}
+
+const TEACHER_HISTORY_LIMIT = 30;
+
+async function fetchTeacherTestHistory(teacherId: string): Promise<TeacherHistoryResult> {
+  const { data, error } = await supabase
+    .from('test')
+    .select('id, test_type, status, rating, ended_at, ranges, student_id')
+    .eq('teacher_id', teacherId)
+    .eq('status', 'completed')
+    .order('ended_at', { ascending: false })
+    .limit(TEACHER_HISTORY_LIMIT);
+  if (error) throw error;
+  const tests = (data ?? []) as TeacherTestRow[];
+
+  const studentIds = Array.from(new Set(tests.map((t) => t.student_id)));
+  const studentNames = new Map<string, string>();
+  if (studentIds.length > 0) {
+    const { data: users } = await supabase
+      .from('app_user')
+      .select('id, display_name')
+      .in('id', studentIds);
+    for (const u of (users ?? []) as Array<{ id: string; display_name: string | null }>) {
+      if (u.display_name) studentNames.set(u.id, u.display_name);
+    }
+  }
+  return { tests, studentNames };
+}
+
+function TeacherTestsHistory({ teacherId }: { teacherId: string }) {
+  const navigate = useNavigate();
+  const { data, isLoading } = useQuery({
+    queryKey: ['teacher_tests_history', teacherId],
+    queryFn: () => fetchTeacherTestHistory(teacherId),
+    staleTime: 30_000,
+  });
+
+  return (
+    <Container size="md" py="lg">
+      <Stack gap="lg">
+        <Stack gap={4}>
+          <Text size="xs" tt="uppercase" c="parchment.0" fw={700} lts={0.8} style={{ opacity: 0.85 }}>
+            Tests
+          </Text>
+          <Group gap="xs" align="center">
+            <ClipboardList size={26} color="var(--mantine-color-parchment-0)" />
+            <Title order={2} c="parchment.0">
+              Tests you administered
+            </Title>
+          </Group>
+          <Text c="parchment.0" size="sm" style={{ opacity: 0.75 }}>
+            Every witnessed test you ran with one of your students. Tap a row to see the recap.
+          </Text>
+        </Stack>
+
+        {isLoading ? (
+          <Group justify="center" py="xl">
+            <Loader size="sm" color="sage.7" />
+            <Text size="sm" c="parchment.0" style={{ opacity: 0.85 }}>
+              Loading history…
+            </Text>
+          </Group>
+        ) : !data || data.tests.length === 0 ? (
+          <Card withBorder radius="md" p="lg">
+            <Stack gap={6}>
+              <Text fw={600}>No tests yet</Text>
+              <Text size="sm" c="dimmed">
+                Start a witnessed test from a student's drill-in page. Completed tests will appear
+                here.
+              </Text>
+            </Stack>
+          </Card>
+        ) : (
+          <Stack gap={8}>
+            {data.tests.map((t) => (
+              <TeacherHistoryRow
+                key={t.id}
+                test={t}
+                studentName={data.studentNames.get(t.student_id) ?? 'Unnamed student'}
+                onClick={() => navigate({ to: '/tests/$testId/recap', params: { testId: t.id } })}
+              />
+            ))}
+          </Stack>
+        )}
+      </Stack>
+    </Container>
+  );
+}
+
+function TeacherHistoryRow({
+  test,
+  studentName,
+  onClick,
+}: {
+  test: TeacherTestRow;
+  studentName: string;
+  onClick: () => void;
+}) {
+  const typeLabel = test.test_type === 'newly_memorized' ? 'New lesson' : 'Revision';
+  const range = test.ranges?.length ? compactRangeLabel(test.ranges) : '—';
+  const when = test.ended_at ? formatRelative(test.ended_at) : '—';
+
+  return (
+    <UnstyledButton onClick={onClick} style={{ width: '100%' }}>
+      <Card withBorder radius="md" p="sm" style={{ cursor: 'pointer' }}>
+        <Group justify="space-between" wrap="nowrap" align="center">
+          <Stack gap={2} style={{ minWidth: 0 }}>
+            <Group gap={8} wrap="nowrap" align="center">
+              <GraduationCap size={14} color="var(--mantine-color-mihrab-9)" />
+              <Text size="sm" fw={600} truncate>
+                {studentName}
+              </Text>
+              <Badge size="xs" variant="light" color={test.test_type === 'newly_memorized' ? 'honey' : 'sage'}>
+                {typeLabel}
+              </Badge>
+            </Group>
+            <Text size="xs" c="dimmed" truncate>
+              {range} · {when}
+            </Text>
+          </Stack>
+          {test.rating && (
+            <Badge color={ratingColor(test.rating)} variant="filled" size="sm">
+              {ratingLabel(test.rating)}
+            </Badge>
+          )}
+        </Group>
+      </Card>
+    </UnstyledButton>
+  );
 }

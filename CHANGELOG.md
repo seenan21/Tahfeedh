@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+### Fixed / Added — Teacher `/tests` history + students route nesting (ADR 0031)
+- **Renamed `apps/web/src/routes/_authed.students.tsx` → `_authed.students.index.tsx`.** TanStack file-routing was treating the `.tsx` as a layout parent of `_authed.students.$studentId.tsx`. The directory page had no `<Outlet />` so clicking a student row updated the URL but the drill-in never rendered. As an `index` file it becomes a sibling of `$studentId` under `_authed`, same shape as the tests routes. `routeTree.gen.ts` regenerated.
+- **`apps/web/src/routes/_authed.tests.index.tsx`** — `TestsPage` now branches on `user.role`. Student branch unchanged. Teacher branch is a new `TeacherTestsHistory` component: 30 most-recent completed tests where `teacher_id = self.id`, student name on each row (separate `app_user.display_name` fetch keyed by collected `student_id`s), New-lesson/Revision badge, range + relative time, rating badge, whole row clickable → `/tests/$testId/recap`. No self-test CTA, no sparkline. Test creation stays where M6 put it: the drill-in's "Start test for this student" button.
+- **ADR 0031** captures both fixes and the rationale for keeping the drill-in as the single test-creation entry point.
+
+### Fixed — "Unnamed teacher" in student Classroom tab (ADR 0030)
+- **Migration `0023_student_reads_teacher_app_user.sql`.** Adds `app_user_select_my_teacher` SELECT policy on `app_user`: a student can read any `app_user` row corresponding to a teacher they have an `status='active'` enrollment with. Mirror of the existing teacher → student direction via `is_my_student()`. PostgreSQL OR's multiple policies for the same operation, so this is additive — the existing `app_user_select` policy is untouched.
+- No frontend change needed; `apps/web/src/routes/_authed.classroom.tsx` was already joining `enrollment` → `app_user.display_name`, just being blocked by RLS. Names now resolve.
+- Leaving a teacher (`leave_teacher` flips enrollment to `'paused'`) immediately revokes the student's read access to that teacher's `app_user` row, symmetric with how the teacher loses access to the student's data.
+
 ### Changed — Teacher directory polish (ADR 0029)
 - **Migration `0022_realtime_enrollment.sql`.** `alter publication supabase_realtime add table enrollment;` — first realtime surface in the app. The teacher directory now reflects student joins live without a refresh.
 - **`apps/web/src/features/teacher/useTeacherStudents.ts`** — opens a Supabase Realtime channel `teacher-enrollment-<teacherId>` on `postgres_changes` (event `*`) filtered by `teacher_id=eq.<id>`. Any event invalidates `teacher_enrollments` + `teacher_student_users`. Channel torn down on unmount.

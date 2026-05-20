@@ -43,7 +43,7 @@ import {
   type TeacherStudent,
 } from '../features/teacher/useTeacherStudents';
 
-export const Route = createFileRoute('/_authed/students')({
+export const Route = createFileRoute('/_authed/students/')({
   beforeLoad: ({ context }) => {
     const { user } = context;
     if (user.role !== 'teacher') throw redirect({ to: homeRouteForRole(user.role) });

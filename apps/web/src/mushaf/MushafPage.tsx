@@ -31,11 +31,13 @@ export interface MushafPageProps {
   /** Optional click handler fired when a rendered marker is tapped. Receives
    * the marker plus the originating MouseEvent for popover positioning. */
   onMarkerTap?: (marker: OverlayMarker, event: React.MouseEvent) => void;
-  /** Tap on any word — fires before onVerseTap. */
+  /** Tap on any word (`char_type === 'word'`). Verse-end glyphs route through
+   *  `onVerseNumberTap` instead — see ADR 0035. */
   onWordTap?: (info: { surah: number; ayah: number; position: number; pageNumber: number }) => void;
-  /** Tap on any word, but only the verse coordinates. Convenience for callers
-   * that need verse-level resolution (e.g. error logging modal). */
-  onVerseTap?: (info: { surah: number; ayah: number; pageNumber: number }) => void;
+  /** Tap on the verse-end glyph (the ۝ + ayah-number marker, `char_type === 'end'`).
+   *  Anchors a verse-scope error in the live test, or opens the drill-up modal
+   *  on the read-only mushaf (ADR 0035). */
+  onVerseNumberTap?: (info: { surah: number; ayah: number; pageNumber: number }) => void;
   /** Optional content slotted above the 15 lines (header). When undefined the
    * component renders its own bilingual page header. */
   header?: React.ReactNode;
@@ -60,7 +62,7 @@ export function MushafPage({
   overlayMode = 'none',
   onMarkerTap,
   onWordTap,
-  onVerseTap,
+  onVerseNumberTap,
   header,
   compact = false,
 }: MushafPageProps) {
@@ -172,8 +174,10 @@ export function MushafPage({
     const charType = target.dataset.charType ?? 'word';
     if (!surah || !ayah || !position) return;
 
+    const isVerseEnd = charType === 'end';
+
     if (onMarkerTap) {
-      const key = charType === 'end'
+      const key = isVerseEnd
         ? markerKeyForVerse(surah, ayah)
         : markerKeyForWord(surah, ayah, position);
       const marker = markerMap.get(key);
@@ -183,8 +187,11 @@ export function MushafPage({
       }
     }
 
-    onWordTap?.({ surah, ayah, position, pageNumber });
-    onVerseTap?.({ surah, ayah, pageNumber });
+    if (isVerseEnd) {
+      onVerseNumberTap?.({ surah, ayah, pageNumber });
+    } else {
+      onWordTap?.({ surah, ayah, position, pageNumber });
+    }
   }
 
   return (
@@ -253,27 +260,54 @@ function LineRow({
       style={{ justifyContent: justify, fontFamily }}
     >
       {line.words.map((w) => {
-        const key = w.char_type === 'end'
+        const isVerseEnd = w.char_type === 'end';
+        const ownKey = isVerseEnd
           ? markerKeyForVerse(w.surah, w.ayah)
           : markerKeyForWord(w.surah, w.ayah, w.position);
-        return <WordSpan key={w.id} word={w} marker={markerMap.get(key)} />;
+        const own = markerMap.get(ownKey);
+        // Whole-verse band (ADR 0035): word-type glyphs in a verse that has
+        // a verse-scope marker show a subtle band, unless they already carry
+        // their own word marker (which would visually dominate anyway).
+        const verseBand =
+          !isVerseEnd && !own ? markerMap.get(markerKeyForVerse(w.surah, w.ayah)) : undefined;
+        return <WordSpan key={w.id} word={w} marker={own} verseBand={verseBand} />;
       })}
     </div>
   );
 }
 
-function WordSpan({ word, marker }: { word: MushafWord; marker?: OverlayMarker }) {
+function WordSpan({
+  word,
+  marker,
+  verseBand,
+}: {
+  word: MushafWord;
+  marker?: OverlayMarker;
+  verseBand?: OverlayMarker;
+}) {
   const hasMarker = marker != null;
-  const badge = hasMarker && marker!.count > 1 ? (marker!.count > 5 ? '5+' : String(marker!.count)) : null;
+  const hasBand = !hasMarker && verseBand != null;
+  const badge =
+    hasMarker && marker!.count > 1 ? (marker!.count > 5 ? '5+' : String(marker!.count)) : null;
+  const className = hasMarker
+    ? `mushaf-word ${classes.wordMarked}`
+    : hasBand
+      ? `mushaf-word ${classes.wordVerseBand}`
+      : 'mushaf-word';
+  const style: React.CSSProperties | undefined = hasMarker
+    ? ({ '--marker-color': marker!.color } as React.CSSProperties)
+    : hasBand
+      ? ({ '--marker-color': verseBand!.color } as React.CSSProperties)
+      : undefined;
   return (
     <span
-      className={hasMarker ? `mushaf-word ${classes.wordMarked}` : 'mushaf-word'}
+      className={className}
       data-mushaf-word=""
       data-surah={word.surah}
       data-ayah={word.ayah}
       data-position={word.position}
       data-char-type={word.char_type}
-      style={hasMarker ? ({ '--marker-color': marker!.color } as React.CSSProperties) : undefined}
+      style={style}
     >
       {word.code_v2}
       {badge ? <sup className={classes.wordMarkerBadge}>{badge}</sup> : null}

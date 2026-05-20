@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { VERSE_SCOPE_ERROR_TYPES, WORD_SCOPE_ERROR_TYPES } from './types.js';
+
 export const userRoleSchema = z.enum(['student', 'teacher']);
 
 export const testRangeSchema = z.discriminatedUnion('type', [
@@ -123,6 +125,22 @@ export const logErrorSchema = z
   .refine(
     (v) => v.error_type !== 'wrong_verse' || (v.related_surah != null && v.related_ayah != null),
     { message: 'wrong_verse requires related_surah and related_ayah', path: ['related_surah'] },
+  )
+  .refine(
+    // ADR 0034 — error_type must match the tap scope.
+    (v) => {
+      const isVerseScope = (VERSE_SCOPE_ERROR_TYPES as readonly string[]).includes(v.error_type);
+      if (isVerseScope) return v.word_position == null;
+      return (
+        v.word_position != null &&
+        (WORD_SCOPE_ERROR_TYPES as readonly string[]).includes(v.error_type)
+      );
+    },
+    {
+      message:
+        'error_type scope mismatch — verse-scope types require word_position=null; word-scope types require word_position',
+      path: ['error_type'],
+    },
   );
 
 export type LogErrorInput = z.infer<typeof logErrorSchema>;

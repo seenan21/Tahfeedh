@@ -9,10 +9,11 @@ import {
   Skeleton,
   Stack,
   Text,
+  Tooltip,
 } from '@mantine/core';
-import { ArrowLeft, BookOpenText, Flame, GraduationCap, History, Play } from 'lucide-react';
+import { ArrowLeft, BookOpenText, Eye, Flame, GraduationCap, History, Lock, Play } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
-import type { TestRating, TestType } from '@tahfeedh/shared';
+import type { TestMode, TestRating, TestType } from '@tahfeedh/shared';
 import { homeRouteForRole } from '../lib/auth';
 import { supabase } from '../lib/supabase';
 import { ActivityStatsCard } from '../features/progress/ActivityStatsCard';
@@ -40,6 +41,8 @@ interface StudentMeta {
 interface RecentTestRow {
   id: string;
   test_type: TestType;
+  test_mode: TestMode;
+  teacher_id: string | null;
   rating: TestRating | null;
   ended_at: string | null;
   ranges: Array<{ type: string; start?: number; end?: number }>;
@@ -85,7 +88,7 @@ async function fetchStreak(studentId: string): Promise<number> {
 async function fetchRecentTests(studentId: string): Promise<RecentTestRow[]> {
   const { data, error } = await supabase
     .from('test')
-    .select('id, test_type, rating, ended_at, ranges')
+    .select('id, test_type, test_mode, teacher_id, rating, ended_at, ranges')
     .eq('student_id', studentId)
     .eq('status', 'completed')
     .order('ended_at', { ascending: false })
@@ -252,41 +255,76 @@ function StudentDrillIn() {
             </Stack>
           ) : recentTests && recentTests.length > 0 ? (
             <Stack gap={6}>
-              {recentTests.map((t) => (
-                <Group
-                  key={t.id}
-                  justify="space-between"
-                  align="center"
-                  p="sm"
-                  wrap="nowrap"
-                  style={{
-                    borderRadius: 10,
-                    background: 'rgba(255,255,255,0.55)',
-                    border: '1px solid rgba(21,53,30,0.06)',
-                    cursor: 'pointer',
-                  }}
-                  onClick={() => navigate({ to: '/tests/$testId/recap', params: { testId: t.id } })}
-                >
-                  <Stack gap={2} style={{ minWidth: 0 }}>
-                    <Group gap="xs" align="center">
-                      <GraduationCap size={14} color="var(--mantine-color-mihrab-9)" />
-                      <Text size="sm" fw={500}>
-                        {t.test_type === 'newly_memorized' ? 'New lesson' : 'Revision'}
-                        {' · '}
-                        {summarizeRanges(t.ranges)}
-                      </Text>
-                    </Group>
-                    <Text size="xs" c="dimmed">
-                      {t.ended_at ? new Date(t.ended_at).toLocaleString() : '—'}
-                    </Text>
-                  </Stack>
-                  {t.rating && (
-                    <Badge size="sm" variant="light" color={ratingColor(t.rating)}>
-                      {t.rating}
-                    </Badge>
-                  )}
-                </Group>
-              ))}
+              {recentTests.map((t) => {
+                const isYours = t.teacher_id === user.id;
+                const witness = deriveWitnessLabel(t, isYours);
+                const row = (
+                  <Group
+                    key={t.id}
+                    justify="space-between"
+                    align="center"
+                    p="sm"
+                    wrap="nowrap"
+                    style={{
+                      borderRadius: 10,
+                      background: isYours
+                        ? 'rgba(255,255,255,0.55)'
+                        : 'rgba(255,255,255,0.35)',
+                      border: '1px solid rgba(21,53,30,0.06)',
+                      cursor: isYours ? 'pointer' : 'default',
+                      opacity: isYours ? 1 : 0.75,
+                    }}
+                    onClick={
+                      isYours
+                        ? () => navigate({ to: '/tests/$testId/recap', params: { testId: t.id } })
+                        : undefined
+                    }
+                  >
+                    <Stack gap={2} style={{ minWidth: 0 }}>
+                      <Group gap="xs" align="center">
+                        <GraduationCap size={14} color="var(--mantine-color-mihrab-9)" />
+                        <Text size="sm" fw={500}>
+                          {t.test_type === 'newly_memorized' ? 'New lesson' : 'Revision'}
+                          {' · '}
+                          {summarizeRanges(t.ranges)}
+                        </Text>
+                      </Group>
+                      <Group gap={6} align="center">
+                        <Badge
+                          size="xs"
+                          variant={isYours ? 'filled' : 'light'}
+                          color={witness.color}
+                          leftSection={
+                            isYours ? <Eye size={10} /> : <Lock size={10} />
+                          }
+                        >
+                          {witness.label}
+                        </Badge>
+                        <Text size="xs" c="dimmed">
+                          {t.ended_at ? new Date(t.ended_at).toLocaleString() : '—'}
+                        </Text>
+                      </Group>
+                    </Stack>
+                    {t.rating && (
+                      <Badge size="sm" variant="light" color={ratingColor(t.rating)}>
+                        {t.rating}
+                      </Badge>
+                    )}
+                  </Group>
+                );
+                return isYours ? (
+                  row
+                ) : (
+                  <Tooltip
+                    key={t.id}
+                    label="Recap details are only available to the witnessing teacher."
+                    position="top"
+                    withArrow
+                  >
+                    {row}
+                  </Tooltip>
+                );
+              })}
             </Stack>
           ) : (
             <Text size="sm" c="dimmed" ta="center" py="sm">
@@ -306,6 +344,16 @@ function StudentDrillIn() {
       />
     </Stack>
   );
+}
+
+function deriveWitnessLabel(
+  t: RecentTestRow,
+  isYours: boolean,
+): { label: string; color: string } {
+  if (isYours) return { label: 'Witnessed by you', color: 'sage' };
+  if (t.test_mode === 'guest_teacher') return { label: 'Self-test', color: 'gray' };
+  if (t.teacher_id) return { label: 'Another teacher', color: 'gray' };
+  return { label: 'Other witness', color: 'gray' };
 }
 
 function ratingColor(r: TestRating): string {

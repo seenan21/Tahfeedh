@@ -283,6 +283,21 @@ function MushafRoute() {
                 overlays={errorStats}
                 overlayMode={overlayMode}
                 onMarkerTap={(marker) => setTappedMarker(marker)}
+                onVerseNumberTap={(info) =>
+                  // ADR 0035 — verse-end tap with no marker still opens the
+                  // drill-up modal so the user can see "anything ever logged
+                  // on this ayah?" Synthetic marker with scope='verse'.
+                  setTappedMarker({
+                    scope: 'verse',
+                    surah: info.surah,
+                    ayah: info.ayah,
+                    count: 0,
+                    intensity: 0,
+                    dominantType: 'tajweed',
+                    color: 'transparent',
+                    signatures: [],
+                  })
+                }
               />
             </Box>
             <Box className={classes.detailsColumn}>

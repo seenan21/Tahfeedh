@@ -652,17 +652,18 @@ Encoded via nullable fields:
 
 ### 9.2 Error types
 
-```typescript
-error_type:
-  | 'tajweed'         // pronunciation rules violation
-  | 'pronunciation'   // letter sound wrong (not a tajweed rule)
-  | 'omission'        // skipped a word/portion
-  | 'addition'        // added a word that isn't there
-  | 'mismatch'        // wrong word substituted
-  | 'wrong_verse'     // jumped to a different verse (mutashabihat slip)
-  | 'forgotten_verse' // couldn't continue
-  | 'hesitation'      // long pause, prompting needed
-```
+Each type has a fixed **scope** (ADR 0034) — word-scope types require `word_position`; verse-scope types require `word_position = NULL`. The picker in `ErrorLogModal` only shows types valid for the tap target, and `logErrorSchema` rejects scope mismatches.
+
+| Error type | Scope | Meaning |
+|---|---|---|
+| `tajweed` | word | Pronunciation rules violation (madd, ghunnah, qalqalah, …) |
+| `pronunciation` | word | Letter sound wrong (makhārij / ṣifāt) — not a tajweed rule |
+| `omission` | word | Skipped a word / portion of a word |
+| `addition` | word | Added a word that isn't there |
+| `mismatch` | word | Wrong word substituted (similar meaning) |
+| `wrong_verse` | verse | Jumped to a different verse (mutashabihat slip). Carries `related_surah` / `related_ayah` |
+| `forgotten_verse` | verse | Couldn't continue — full memory blank |
+| `hesitation` | verse | Long pause before continuing, prompting needed |
 
 ### 9.3 Severity
 
@@ -715,7 +716,7 @@ Errors render as visual overlays on the mushaf at the most precise scope they ha
 |---|---|---|
 | Single word | `word_position` set, `word_position_end` NULL or equal | Small dot/underline beneath that word |
 | Word range | `word_position` and `word_position_end` set (different values) | Continuous underline across all words in range |
-| Whole verse | `word_position` and `word_position_end` both NULL | Small icon at the verse end (near the ۝ marker) or subtle background tint on the verse number |
+| Whole verse | `word_position` and `word_position_end` both NULL | Subtle background band across **every word** of the ayah, plus a count badge on the ۝ verse-end glyph (ADR 0035) |
 | Cross-verse jump | `related_surah` / `related_ayah` populated | Rendered at the source verse like a verse-scope error; modal shows the related destination |
 
 **Multiple errors at the same location**
@@ -724,7 +725,7 @@ Three overlap cases handled by one rule: one marker per visual location, modal c
 
 - **Case 1 — Same word, multiple historical errors:** Word 5 of Baqarah 35 has a tajweed error from one test and an omission error from another. One marker beneath word 5. Heatmap intensity reflects the combined intensity (per §9.5). Badge shows the count.
 - **Case 2 — Different scopes touching the same words:** A word-level error on word 5 and a verse-level error on the same ayah. Both render — word marker beneath word 5, verse marker at verse end — because they occupy different visual positions.
-- **Case 3 — Multiple errors at the same location in one test:** Teacher logs both "tajweed on word 5" and "hesitation on word 5" in a single test. One marker, count of 2.
+- **Case 3 — Multiple errors at the same location in one test:** Teacher logs both "tajweed on word 5" and "mismatch on word 5" in a single test. One marker, count of 2. (Word-scope types only — hesitation is verse-scope per §9.2 / ADR 0034.)
 
 **Word ranges in overlap aggregation:** an error with `word_position=5, word_position_end=8` is associated with words 5, 6, 7, and 8 for marker-aggregation. Tapping any of those words opens a modal that includes this error.
 
@@ -746,7 +747,7 @@ If a single word has more than 5 associated errors, render one marker with badge
 Tapping any marker opens the error detail modal (§9.6) scoped to that location:
 
 - Word marker → modal shows all errors associated with that word position (including any word-range errors that overlap it)
-- Verse-end marker → modal shows all verse-scope errors for that ayah (excludes word-scope errors)
+- Verse-end marker → **drill-up**: modal shows all errors on the ayah — verse-scope group at the top, then one group per touched word (ADR 0035 inverts the earlier "verse-scope only" rule, since the verse-number glyph is now the natural "show everything on this ayah" gesture)
 
 Modal lists errors grouped by signature, then chronologically within each signature:
 

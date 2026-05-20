@@ -2,6 +2,34 @@
 
 ## [Unreleased]
 
+### Changed — Error model: scope split + verse-number tap + whole-verse band (ADRs 0034 + 0035)
+- **`packages/shared/src/types.ts`** — `ErrorType` partitioned into `WORD_SCOPE_ERROR_TYPES` (`tajweed`, `pronunciation`, `omission`, `addition`, `mismatch`) and `VERSE_SCOPE_ERROR_TYPES` (`wrong_verse`, `forgotten_verse`, `hesitation`). New `ErrorScope` type + `scopeOfErrorType(t)` helper.
+- **`packages/shared/src/schema.ts`** — `logErrorSchema` gains a refinement: verse-scope types must have `word_position = null`; word-scope types must have `word_position` set. Validates both client and server inserts.
+- **`apps/web/src/mushaf/MushafPage.tsx`** — new `onVerseNumberTap` callback fires when the ۝ verse-end glyph is tapped (replaces the previous behavior where word + verse-end taps both routed to `onWordTap`/`onVerseTap`). Removes the unused `onVerseTap` prop.
+- **`apps/web/src/mushaf/MushafPage.tsx` + `MushafPage.module.css`** — whole-verse band rendering. Every word on a verse with a verse-scope marker gets a subtle `.wordVerseBand` background (~8% of marker color, no underline). Words that have their own word marker keep `.wordMarked` instead (more saturated, with underline) — never both. The ۝ glyph still carries the count badge.
+- **`apps/web/src/features/live-test/ErrorLogModal.tsx`** — chip list now scope-aware: tap a word → word-scope types only; tap the verse number → verse-scope types only. New scope badge in the header ("Whole verse" / "Word"). `location.word_position` accepts `null` for verse-scope.
+- **`apps/web/src/features/live-test/LiveTestRoute.tsx`** — `modalLocation.word_position` now `number | null`; new `handleVerseNumberTap` wires the verse-end glyph to the verse-scope error log.
+- **`apps/web/src/mushaf/ErrorDetailModal.tsx`** — verse-end marker tap (`marker.scope === 'verse'`) now opens in **drill-up mode**: query drops the `word_position` filter and the modal renders a "Verse-scope" group at the top plus one paper-card group per touched word. Cache key includes scope to keep drill-up and word-scope caches separate.
+- **`apps/web/src/routes/_authed.mushaf.tsx`** — `onVerseNumberTap` wired to open the drill-up modal even when no verse marker exists (synthetic scope='verse' marker), so a tap on any ۝ answers "what's ever been logged on this ayah?"
+- **DESIGN.md §9.2** rewritten as a table that includes the scope column. **§9.7** updated: whole-verse row now reads "background band across every word + ۝ badge"; Case 3 example uses two word-scope types; tap-behavior bullet inverts to drill-up.
+
+### Changed — Post-test summary visual polish + notes visible in the live flow
+- **`apps/web/src/features/live-test/PostTestSummaryView.tsx`** — each NEW/RECURRING/CLEARED section is now a Card with a tinted background (brick/honey/sage palette) and bordered header. Row cards get an inline-start accent bar in the error-type palette color, the type label is bolded, a scope badge is added, and `word_position == null` rows now read "whole verse" instead of dropping the suffix entirely.
+- **`apps/web/src/features/live-test/PostTestSummaryModal.tsx`** — new `loggedErrors?: LoggedError[]` prop. When provided, the modal renders a "Errors logged this test" section under the summary using the shared `LoggedErrorsList`, so per-occurrence rows (with their notes) are visible in the live flow — previously notes were only retrievable on the `/tests/:id/recap` route.
+- **`apps/web/src/features/live-test/LiveTestRoute.tsx`** — passes `session.errors` to the summary modal.
+- **`apps/web/src/features/live-test/LoggedErrorsList.tsx`** — per-row accent bar in the error-type palette color, scope badge (`word` / `verse`), and notes now render in a labelled honey-tinted callout with a `MessageSquare` icon (was: dim `lineClamp={2}` text).
+- **`apps/web/src/mushaf/ErrorDetailModal.tsx`** — same labelled honey-tinted "Note" callout for occurrences; type group header gets a scope badge.
+
+### Changed — Witness attribution on drill-in Recent tests (ADR 0036)
+- **`apps/web/src/routes/_authed.students.$studentId.tsx`** — `fetchRecentTests` now also selects `teacher_id` + `test_mode`. Each recent-test row carries a leading badge:
+  - `teacher_id === user.id` → "Witnessed by you" (sage filled, `Eye`) — clickable, navigates to recap.
+  - `test_mode === 'guest_teacher'` → "Self-test" (gray light, `Lock`) — not clickable.
+  - Other teacher → "Another teacher" (gray light, `Lock`) — not clickable.
+- Non-yours rows render with `cursor: 'default'`, `opacity: 0.75`, no `onClick`, and a Mantine `Tooltip` reading "Recap details are only available to the witnessing teacher."
+- New `deriveWitnessLabel(row, isYours)` helper colocated with `ratingColor`.
+- Pure UI change — companion to ADR 0033's deliberate decision to keep `error_log` RLS narrow. The list still shows the full testing picture; only navigation into unavailable recaps is gated.
+- **ADR 0036** captures the gating + rejected alternatives (hiding non-yours rows, opening `error_log` fully).
+
 ### Fixed — Teacher drill-in: today's session + recent tests load (ADR 0033)
 - **Migration `0024_teacher_session_and_test_reads.sql`.** Two openings so the teacher's read of student data isn't crippled:
   - New `test_teacher_select_student` SELECT policy on `test` — `using (is_my_student(student_id))`. The teacher can now read every completed test for an actively enrolled student (self-tests, other-teacher tests, this-teacher tests). The existing `test_teacher_all` policy still gates writes to teacher-administered, so this is read-only widening.

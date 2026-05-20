@@ -28,6 +28,28 @@ export type ErrorType =
 
 export type ErrorSeverity = 'minor' | 'moderate' | 'major';
 
+// Scope partitioning per ADR 0034. Word-scope types must carry word_position;
+// verse-scope types must have word_position = NULL. Enforced by logErrorSchema.
+export type ErrorScope = 'word' | 'verse';
+
+export const WORD_SCOPE_ERROR_TYPES = [
+  'tajweed',
+  'pronunciation',
+  'omission',
+  'addition',
+  'mismatch',
+] as const satisfies readonly ErrorType[];
+
+export const VERSE_SCOPE_ERROR_TYPES = [
+  'wrong_verse',
+  'forgotten_verse',
+  'hesitation',
+] as const satisfies readonly ErrorType[];
+
+export function scopeOfErrorType(t: ErrorType): ErrorScope {
+  return (VERSE_SCOPE_ERROR_TYPES as readonly ErrorType[]).includes(t) ? 'verse' : 'word';
+}
+
 // Test mode (ADR 0004). enrolled_teacher = teacher_id is set; guest_teacher =
 // teacher_id is null, optional guest_tester_name captured for the record.
 export type TestMode = 'enrolled_teacher' | 'guest_teacher';

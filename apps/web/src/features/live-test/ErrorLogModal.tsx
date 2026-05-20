@@ -13,6 +13,7 @@ import {
 } from '@mantine/core';
 import { AlertCircle, Search } from 'lucide-react';
 import type { ErrorSeverity, ErrorType, LogErrorInput } from '@tahfeedh/shared';
+import { VERSE_SCOPE_ERROR_TYPES, WORD_SCOPE_ERROR_TYPES } from '@tahfeedh/shared';
 import { apiFetch } from '../../api/client';
 import { chapter } from '../../data/quran-data';
 
@@ -27,31 +28,43 @@ interface QfSearchResponse {
   };
 }
 
-const ERROR_TYPES: Array<{ value: ErrorType; label: string; help: string }> = [
-  { value: 'tajweed', label: 'Tajweed', help: 'Rules of recitation (madd, ghunnah, qalqalah, ...)' },
-  { value: 'pronunciation', label: 'Pronunciation', help: 'Letter sound — makhārij or ṣifāt' },
-  { value: 'omission', label: 'Omission', help: 'Skipped a word or part of a word' },
-  { value: 'addition', label: 'Addition', help: 'Added a word not in the ayah' },
-  { value: 'mismatch', label: 'Mismatch', help: 'Said a different word with similar meaning' },
-  { value: 'wrong_verse', label: 'Wrong verse', help: 'Jumped to a different ayah entirely' },
-  { value: 'forgotten_verse', label: 'Forgotten verse', help: 'Couldn’t continue — full memory blank' },
-  { value: 'hesitation', label: 'Hesitation', help: 'Long pause before continuing' },
-];
+interface TypeMeta {
+  label: string;
+  help: string;
+}
+
+const ERROR_TYPE_META: Record<ErrorType, TypeMeta> = {
+  tajweed: { label: 'Tajweed', help: 'Rules of recitation (madd, ghunnah, qalqalah, …)' },
+  pronunciation: { label: 'Pronunciation', help: 'Letter sound — makhārij or ṣifāt' },
+  omission: { label: 'Omission', help: 'Skipped a word or part of a word' },
+  addition: { label: 'Addition', help: 'Added a word not in the ayah' },
+  mismatch: { label: 'Mismatch', help: 'Said a different word with similar meaning' },
+  wrong_verse: { label: 'Wrong verse', help: 'Jumped to a different ayah entirely' },
+  forgotten_verse: { label: 'Forgotten verse', help: "Couldn't continue — full memory blank" },
+  hesitation: { label: 'Hesitation', help: 'Long pause before continuing' },
+};
 
 interface Props {
   opened: boolean;
   onClose: () => void;
-  /** The word the student tapped on (anchor for the error). */
+  /** The tap target. `word_position = null` means the verse-end glyph (۝) was
+   *  tapped — verse-scope error logging per ADR 0035. */
   location: {
     surah: number;
     ayah: number;
-    word_position: number;
+    word_position: number | null;
   } | null;
   onSubmit: (input: LogErrorInput) => Promise<void>;
 }
 
 export function ErrorLogModal({ opened, onClose, location, onSubmit }: Props) {
-  const [errorType, setErrorType] = useState<ErrorType>('tajweed');
+  const isVerseScope = location != null && location.word_position == null;
+  const allowedTypes: readonly ErrorType[] = isVerseScope
+    ? VERSE_SCOPE_ERROR_TYPES
+    : WORD_SCOPE_ERROR_TYPES;
+  const defaultType: ErrorType = allowedTypes[0]!;
+
+  const [errorType, setErrorType] = useState<ErrorType>(defaultType);
   const [severity, setSeverity] = useState<ErrorSeverity>('moderate');
   const [note, setNote] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -64,14 +77,14 @@ export function ErrorLogModal({ opened, onClose, location, onSubmit }: Props) {
 
   useEffect(() => {
     if (opened) {
-      setErrorType('tajweed');
+      setErrorType(defaultType);
       setSeverity('moderate');
       setNote('');
       setQuery('');
       setResults([]);
       setPick(null);
     }
-  }, [opened]);
+  }, [opened, defaultType]);
 
   // Debounced QF search when error_type === 'wrong_verse'
   useEffect(() => {
@@ -98,7 +111,10 @@ export function ErrorLogModal({ opened, onClose, location, onSubmit }: Props) {
   const locationLabel = useMemo(() => {
     if (!location) return '';
     const ch = chapter(location.surah);
-    return `${ch?.name_simple ?? ''} ${location.surah}:${location.ayah} · word ${location.word_position}`;
+    const base = `${ch?.name_simple ?? ''} ${location.surah}:${location.ayah}`;
+    return location.word_position == null
+      ? `${base} · whole verse`
+      : `${base} · word ${location.word_position}`;
   }, [location]);
 
   if (!location) return null;
@@ -110,7 +126,9 @@ export function ErrorLogModal({ opened, onClose, location, onSubmit }: Props) {
       await onSubmit({
         surah: location!.surah,
         ayah: location!.ayah,
-        word_position: location!.word_position,
+        // null word_position is verse-scope; word_position is only sent for
+        // word-scope (ADR 0034 — schema validates scope match).
+        word_position: location!.word_position == null ? undefined : location!.word_position,
         error_type: errorType,
         severity,
         teacher_note: note.trim() || undefined,
@@ -123,8 +141,17 @@ export function ErrorLogModal({ opened, onClose, location, onSubmit }: Props) {
     }
   }
 
-  const submitDisabled =
-    submitting || (errorType === 'wrong_verse' && !pick);
+  const submitDisabled = submitting || (errorType === 'wrong_verse' && !pick);
+
+  const scopeBadge = isVerseScope ? (
+    <Badge color="brick.7" variant="light" size="sm">
+      Whole verse
+    </Badge>
+  ) : (
+    <Badge color="sage.7" variant="light" size="sm">
+      Word
+    </Badge>
+  );
 
   return (
     <Modal
@@ -140,30 +167,33 @@ export function ErrorLogModal({ opened, onClose, location, onSubmit }: Props) {
       centered
     >
       <Stack gap="md">
-        <Text size="sm" c="dimmed">
-          {locationLabel}
-        </Text>
+        <Group gap="xs" wrap="wrap">
+          {scopeBadge}
+          <Text size="sm" c="dimmed">
+            {locationLabel}
+          </Text>
+        </Group>
 
         <Stack gap={4}>
           <Text size="xs" fw={600} c="dimmed">
             Error type
           </Text>
           <Group gap={6}>
-            {ERROR_TYPES.map((t) => (
+            {allowedTypes.map((t) => (
               <Badge
-                key={t.value}
-                variant={errorType === t.value ? 'filled' : 'light'}
-                color={errorType === t.value ? 'brick' : 'gray'}
-                onClick={() => setErrorType(t.value)}
+                key={t}
+                variant={errorType === t ? 'filled' : 'light'}
+                color={errorType === t ? 'brick' : 'gray'}
+                onClick={() => setErrorType(t)}
                 style={{ cursor: 'pointer' }}
                 size="lg"
               >
-                {t.label}
+                {ERROR_TYPE_META[t].label}
               </Badge>
             ))}
           </Group>
           <Text size="xs" c="dimmed" mt={4}>
-            {ERROR_TYPES.find((t) => t.value === errorType)?.help}
+            {ERROR_TYPE_META[errorType].help}
           </Text>
         </Stack>
 

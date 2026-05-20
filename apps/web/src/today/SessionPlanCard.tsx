@@ -99,13 +99,17 @@ export function SessionPlanCard({ studentId, readOnly = false }: SessionPlanCard
       {/* Header counter */}
       <Group justify="space-between" align="center">
         <Stack gap={2}>
-          <Text size="xs" tt="uppercase" c="dimmed" fw={700} lts={0.8}>
-            Today's plan
-          </Text>
+          {readOnly ? null : (
+            <Text size="xs" tt="uppercase" c="dimmed" fw={700} lts={0.8}>
+              Today's plan
+            </Text>
+          )}
           <Text fw={600} size="lg">
             {session.session_index > 1
               ? `Session ${session.session_index} of the day`
-              : 'Your session at a glance'}
+              : readOnly
+                ? "Student's plan for today"
+                : 'Your session at a glance'}
           </Text>
         </Stack>
         <Badge variant="light" color="mihrab.7" size="lg" radius="sm">

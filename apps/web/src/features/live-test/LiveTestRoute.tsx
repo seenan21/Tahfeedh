@@ -53,7 +53,7 @@ export function LiveTestRoute() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [pageIndex, setPageIndex] = useState(0);
   const [modalLocation, setModalLocation] = useState<
-    | { surah: number; ayah: number; word_position: number }
+    | { surah: number; ayah: number; word_position: number | null }
     | null
   >(null);
   const [summary, setSummary] = useState<PostTestSummary | null>(null);
@@ -88,6 +88,11 @@ export function LiveTestRoute() {
 
   const handleWordTap = (info: { surah: number; ayah: number; position: number }) => {
     setModalLocation({ surah: info.surah, ayah: info.ayah, word_position: info.position });
+  };
+
+  const handleVerseNumberTap = (info: { surah: number; ayah: number }) => {
+    // ADR 0035 — verse-end glyph (۝) tap anchors a verse-scope error.
+    setModalLocation({ surah: info.surah, ayah: info.ayah, word_position: null });
   };
 
   const handleSubmitError = async (input: LogErrorInput) => {
@@ -217,6 +222,7 @@ export function LiveTestRoute() {
           <MushafPage
             pageNumber={currentPage}
             onWordTap={handleWordTap}
+            onVerseNumberTap={handleVerseNumberTap}
             overlays={liveOverlay}
             overlayMode="heatmap"
           />
@@ -244,6 +250,7 @@ export function LiveTestRoute() {
         onClose={handleSummaryClose}
         summary={summary}
         durationSec={finishedDuration}
+        loggedErrors={session.errors}
       />
     </Container>
   );

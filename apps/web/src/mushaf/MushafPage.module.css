@@ -88,6 +88,21 @@
   background: color-mix(in srgb, var(--marker-color) 22%, transparent);
 }
 
+/* Whole-verse band (ADR 0035). Applied to every word of a verse that has a
+   verse-scope marker, except the words that already carry their own word
+   marker (those use .wordMarked instead). Subtler than .wordMarked so the
+   word-scope markers still pop. No underline. */
+.wordVerseBand {
+  position: relative;
+  background: color-mix(in srgb, var(--marker-color) 8%, transparent);
+  border-radius: 4px;
+  transition: background 120ms ease;
+}
+
+.wordVerseBand:hover {
+  background: color-mix(in srgb, var(--marker-color) 16%, transparent);
+}
+
 .wordMarkerBadge {
   display: inline-block;
   min-width: 14px;

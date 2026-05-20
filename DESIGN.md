@@ -1526,10 +1526,10 @@ Dependency-ordered. AI-paced. Tick them off as you go.
 - [x] Group CRUD (create, rename, delete) — inline on the Students route. Dedicated `/groups` route dropped per ADR 0027.
 - [x] Click student → drill-in `/students/$studentId` — header (name, group, streak, "Start test for this student") + reused M7 cards (`<ForecastCard>`, `<ActivityStatsCard>`, `<RevisionHealthGrid>`) + recent tests list.
 - [x] "Start test for this student" → existing `TestCreationModal` in `mode="enrolled_teacher"`. Server `/api/tests/create` enrolled_teacher branch lights up (was stubbed 501 in Phase D).
-- [x] Teacher enters code → enrollment row — `Enroll via code` button on the Students page calls existing `enroll_via_code(text)` RPC.
-- [ ] Student invite flow: display student's code in their Settings (M7.5).
+- [x] Enrollment direction flipped (ADR 0028, migration 0021). Teacher mints an 8-char Crockford-alphabet invite code via the "Invite a student" modal on the Students page (`get_or_create_teacher_invite_code` / `rotate_teacher_invite_code` RPCs, reusable, 24h TTL). Student joins through the new `/classroom` route (`enroll_via_code` is now student-called). `student_code` table dropped. New students land Ungrouped — teacher organizes them via the Move-to-group menu.
+- [x] Student-side Classroom view (`_authed.classroom.tsx`) — lists active teachers, "Join via code" CTA, "Leave class" per row via `leave_teacher(uuid)` RPC. Flipping enrollment to `'paused'` immediately revokes teacher data access via existing `is_my_student()` RLS gate.
 
-**Done when:** teacher account manages 3 students across groups, runs a test on any of them, sees full history. Code-display side is M7.5 (Settings page).
+**Done when:** teacher account manages 3 students across groups, runs a test on any of them, sees full history. ✅ Reached 2026-05-19.
 
 ### M7 — Progress + Error Drilldown + Polish
 
@@ -1551,7 +1551,6 @@ Carved out of M7 — the Settings route is currently an `EmptyState` stub and bu
 Student settings:
 - [ ] Daily capacity controls (`pages_per_session_new` + `pages_per_session_revision`) — sliders or numeric inputs with the same bounds onboarding Step 3 enforces (≤ 20, half-page allowed for new)
 - [ ] `app_user.has_completed_quran` toggle
-- [ ] Classroom membership summary (the actual code mint+rotate lives in `/classroom` on the student side and the teacher Students route; Settings just links to those flows) — superseded by ADR 0028
 - [ ] Profile (name, email — read-only for MVP unless trivial)
 - [ ] **Edit Memorization** — routes to `/onboarding?edit=1` with reducer state pre-populated from current DB rows. Submits through the existing `/api/onboarding/finish` + `commit_onboarding` path (recommended path in `notes-for-future.md`, zero new SQL)
 - [ ] Hifz direction toggle (`student_settings.hifz_direction`) — currently only set at onboarding (ADR 0014)
@@ -1559,9 +1558,11 @@ Student settings:
 Teacher settings:
 - [ ] Profile only
 
-**Done when:** a student can change daily capacity, toggle completed-Quran, recalibrate their memorization claims via Edit Memorization, and read their invite code without leaving Settings.
+**Not in scope:**
+- Classroom membership / invite codes — they live on `/classroom` (student side) and the teacher Students route, not Settings (per ADR 0028).
+- "Connect Quran.com" button — that lives in M8 (depends on OAuth flow).
 
-**Not in scope:** "Connect Quran.com" button — that lives in M8 (depends on OAuth flow).
+**Done when:** a student can change daily capacity, toggle completed-Quran, switch hifz direction, and recalibrate their memorization claims via Edit Memorization, all from Settings.
 
 ### M8 — QF User APIs
 - [ ] OAuth Authorization Code + PKCE flow in Express using `openid-client`

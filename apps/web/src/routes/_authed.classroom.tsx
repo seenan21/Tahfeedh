@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { homeRouteForRole } from '../lib/auth';
 import { supabase } from '../lib/supabase';
+import { toastError, toastSuccess } from '../lib/toast';
 
 export const Route = createFileRoute('/_authed/classroom')({
   beforeLoad: ({ context }) => {
@@ -130,7 +131,9 @@ function ClassroomPage() {
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['classroom_teachers', user.id] });
+      toastSuccess('Left classroom');
     },
+    onError: (err) => toastError(err, 'Could not leave the classroom'),
   });
 
   return (
@@ -320,9 +323,11 @@ function JoinViaCodeModal({
     setSubmitting(false);
     if (rpcError) {
       setError(rpcError.message);
+      toastError(rpcError, 'Could not join classroom');
       return;
     }
     await onSuccess();
+    toastSuccess('Joined classroom');
     setCode('');
     onClose();
   }

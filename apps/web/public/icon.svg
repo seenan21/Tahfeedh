@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1c4129"/>
+      <stop offset="55%" stop-color="#15351E"/>
+      <stop offset="100%" stop-color="#102819"/>
+    </linearGradient>
+    <linearGradient id="leafGlow" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFC1"/>
+      <stop offset="100%" stop-color="#D9E8D3"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="96" ry="96" fill="url(#bg)"/>
+  <g transform="translate(256 256)" fill="url(#leafGlow)" font-family="Cairo, sans-serif" font-weight="700">
+    <text text-anchor="middle" dominant-baseline="central" font-size="320" dy="20">ت</text>
+  </g>
+</svg>

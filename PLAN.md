@@ -6,9 +6,22 @@
 
 ---
 
-## Where we are (snapshot — end of 2026-05-19)
+## Where we are (snapshot — end of 2026-05-20, deadline day)
 
-Phases A–D are complete. The core of M5, M6, and M7 all landed today. Remaining: M7 polish bullets (empty states / skeletons / toasts / mobile sweep / PWA), M7.5 Settings page, M8 QF User APIs, M9 mutashabihat (conditional), M10 seed + demo prep, M11 video + submission. Deadline 2026-05-20.
+Phases A–D + M5 + M6 + M7 core + **M7.5 Settings + M8 QF User APIs + the M7 polish foundation** are all complete. Remaining: M9 mutashabihat (conditional / cuttable), M10 seed + demo prep, M11 video + submission. Submission deadline is **today**.
+
+### Shipped today (2026-05-20)
+
+- **M8 QF User APIs (ADR 0040).** Full OAuth2 + PKCE flow against `oauth2.quran.foundation` using a stateless HMAC-signed `state` parameter (`{ userId, verifier, exp, nonce }`) instead of cookies — survives the dev cross-origin HTTP cookie limitation. New `apps/server/src/routes/qfAuth.ts` (authorize/callback/status/disconnect) + `qfUser.ts` (streak + goals proxies). Token persistence + automatic `refresh_token` grant in `apps/server/src/qf/userTokens.ts`. **Three live User API scopes:** `bookmark` (fire-and-forget POST after onboarding finish + test finish), `goal` (real Goals page lit up at `/goals` with create/edit/delete writing through to QF), `streak.read` (Today `StreakBadge` swaps from local `daily_streak()` to QF QURAN streak when connected, with "via Quran.com" sublabel + QF accent color `#0E7C5C`). User-visible CTA in two places: prominent dismissible **Today banner** at the top of `/today` (per-session `sessionStorage` dismissal), and **Settings card** (`ConnectQuranCom.tsx`) showing scope chips + expiry + Disconnect.
+- **M7.5 Settings page (ADR 0039).** `_authed.settings.tsx` rewritten from EmptyState to a full role-branched layout. Student: Profile (read-only), Connect Quran.com, Daily capacity (mirrors `Step3Sessions.tsx` NumberInput bounds), Hifz direction (reuses `Step1Path.tsx` two-card picker), Memorization status (`has_completed_quran` Switch + Edit Memorization button). Teacher: Profile only. All writes are direct Supabase `UPDATE`s under existing RLS — no new endpoints, no migration.
+- **Edit Memorization (ADR 0039).** `/onboarding?edit=1` is now a real entrypoint. `validateSearch` parses the search param; `beforeLoad` gate relaxed for `onboarding_complete=true + edit=1`. State reducer gains `HYDRATE` action. New `apps/web/src/onboarding/hydrate.ts` derives juz/surah selections from current `memorization_page` rows via `quran-index.json` so the Step 2 picker opens pre-filled. Reuses idempotent `commit_onboarding` so re-edits don't lose data. Partial-surah `upToAyah` deliberately not reconstructed (hackathon scope cut).
+- **M7 polish foundation (ADRs 0039 + 0040).** `@mantine/notifications` ^7.15.1 installed and mounted in `main.tsx` (`<Notifications position="top-right" />`). New `apps/web/src/lib/toast.ts` (`toastError` / `toastSuccess` / `toastInfo`) + `apps/web/src/components/SkeletonRow.tsx` shared primitive. Toasts wired on 5 high-value mutations (test create, log error / finish test, classroom leave + enroll, group/move/rotate-invite, load next session).
+- **PWA stub.** `apps/web/public/manifest.webmanifest` + `apps/web/public/icon.svg` (SVG icon, mihrab gradient + ت glyph). `index.html` declarations: manifest + apple-touch-icon + apple-mobile-web-app-* metas. Theme color `#15351E` (mihrab.9). Installable; no service worker yet.
+- **Mobile sweep.** `AppSidebar.module.css` `@media (max-width: 640px)` reduces hover-expand width + pads items. Live-test two-pane grid collapses to single column at ≤900px so the mushaf + error log stack vertically on phones.
+
+### Shipped 2026-05-19
+
+(see CHANGELOG for the full list — M5 algorithm closure, M6 teacher side, M7 progress cards, error detail modal, enrollment direction flip, teacher drill-in expansion, witness attribution, error type scope split, and the submit_test memorization_verse fix.)
 
 ### Shipped today (2026-05-19)
 
@@ -72,6 +85,8 @@ Phases A–D are complete. The core of M5, M6, and M7 all landed today. Remainin
 
 ### Latest ADRs (most recent first)
 
+- **0040** — M8 QF User APIs: PKCE OAuth flow with stateless HMAC-signed state (no cookies needed). Bookmarks + Goals + Streak read live; reading_session.create scope requested but write deferred. Streak swap on the Today badge when connected.
+- **0039** — M7.5 Settings page + Edit Memorization. Direct Supabase UPDATEs under existing RLS for the three toggles; Edit Memorization reuses `/onboarding?edit=1` + idempotent `commit_onboarding`. New `HYDRATE` reducer action.
 - **0028** — Invite-code direction flipped. Teacher mints; student joins. New `teacher_invite_code` table, `student_code` dropped, `enroll_via_code` semantics reversed. Classroom tab on student side.
 - **0027** — Teacher Students directory layout (groups as folders + Ungrouped). Inline group CRUD; no `/groups` route. Drill-in reuses M7 cards.
 - **0026** — Error detail modal implementation (closes ADR 0023).

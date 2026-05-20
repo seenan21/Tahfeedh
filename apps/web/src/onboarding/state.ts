@@ -54,7 +54,8 @@ export type Action =
   | { type: 'NEXT' }
   | { type: 'BACK' }
   | { type: 'SET_SUBMITTING'; submitting: boolean }
-  | { type: 'SET_ERROR'; error: string | null };
+  | { type: 'SET_ERROR'; error: string | null }
+  | { type: 'HYDRATE'; patch: Partial<OnboardingState> };
 
 export function reducer(state: OnboardingState, action: Action): OnboardingState {
   switch (action.type) {
@@ -128,6 +129,9 @@ export function reducer(state: OnboardingState, action: Action): OnboardingState
 
     case 'SET_ERROR':
       return { ...state, error: action.error };
+
+    case 'HYDRATE':
+      return { ...state, ...action.patch };
   }
 }
 

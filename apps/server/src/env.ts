@@ -26,4 +26,5 @@ export const env = {
   qfApiUrl: optional('QF_API_URL', 'https://apis.quran.foundation'),
 
   webOrigin: optional('WEB_ORIGIN', 'http://localhost:5173'),
+  serverBaseUrl: optional('SERVER_BASE_URL', 'http://localhost:3001'),
 };

@@ -8,6 +8,7 @@ import {
 import { verifyUser, AuthError } from '../auth/verifyUser.js';
 import { supabaseAdmin } from '../supabase.js';
 import { resolveTestRanges } from '../pipelines/post-test/resolve.js';
+import { pushBookmark } from '../qf/bookmarks.js';
 import quranIndexJson from '../data/quran-index.json' with { type: 'json' };
 
 const quranIndex = quranIndexJson as unknown as QuranIndex;
@@ -223,6 +224,14 @@ testsRouter.post('/:id/finish', async (req, res, next) => {
       console.error('[tests/finish] submit_test rpc failed', error);
       res.status(500).json({ error: error.message });
       return;
+    }
+
+    // Fire-and-forget QF Bookmarks push for the student's furthest ayah on
+    // this test — represents "where they are now" in their hifz frontier.
+    // Skipped silently if the student has no qf_user_token row.
+    if (resolved.coveredPageAyahs.length > 0) {
+      const last = resolved.coveredPageAyahs[resolved.coveredPageAyahs.length - 1]!;
+      void pushBookmark(testRow.student_id, { surah: last.surah, ayah: last.ayah });
     }
 
     res.json({ ok: true, summary: data });

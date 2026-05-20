@@ -13,6 +13,7 @@
     "@mantine/core": "^7.15.1",
     "@mantine/form": "^7.17.8",
     "@mantine/hooks": "^7.15.1",
+    "@mantine/notifications": "^7.15.1",
     "@react-three/fiber": "^8.18.0",
     "@supabase/supabase-js": "^2.46.1",
     "@tahfeedh/shared": "*",

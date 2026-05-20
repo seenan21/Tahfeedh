@@ -12,6 +12,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { BookOpenText, PartyPopper, Repeat2, Sparkles } from 'lucide-react';
 import type { TodaySession } from '@tahfeedh/shared';
 import { supabase } from '../lib/supabase';
+import { toastError } from '../lib/toast';
 import { EmptySlotCard } from './EmptySlotCard';
 import { PlanRow } from './PlanRow';
 
@@ -60,6 +61,7 @@ export function SessionPlanCard({ studentId, readOnly = false }: SessionPlanCard
         queryClient.invalidateQueries({ queryKey: TODAY_SESSION_KEY(studentId) });
       }
     },
+    onError: (err) => toastError(err, 'Could not load next session'),
   });
 
   const counts = useMemo(() => {

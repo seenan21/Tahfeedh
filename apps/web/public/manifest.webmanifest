@@ -1,0 +1,19 @@
+{
+  "name": "Tahfeedh",
+  "short_name": "Tahfeedh",
+  "description": "A hifz CRM — for memorizers, their teachers, and the journey between them.",
+  "start_url": "/today",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#FFFFC1",
+  "theme_color": "#15351E",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any",
+      "purpose": "any"
+    }
+  ]
+}

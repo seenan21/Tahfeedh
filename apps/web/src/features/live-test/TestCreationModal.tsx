@@ -15,6 +15,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { MemorizationStatus, NextNewLesson, TestCreateInput, TestMode, TestType } from '@tahfeedh/shared';
 import { apiFetch } from '../../api/client';
 import { supabase } from '../../lib/supabase';
+import { toastError } from '../../lib/toast';
 
 interface Props {
   opened: boolean;
@@ -208,7 +209,9 @@ export function TestCreationModal({
       onClose();
       setTimeout(() => onCreated(res.id), 0);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create test');
+      const msg = err instanceof Error ? err.message : 'Failed to create test';
+      setError(msg);
+      toastError(err, 'Could not start test');
       setSubmitting(false);
     }
   };

@@ -37,6 +37,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { TestRating } from '@tahfeedh/shared';
 import { homeRouteForRole } from '../lib/auth';
 import { supabase } from '../lib/supabase';
+import { toastError, toastSuccess } from '../lib/toast';
 import {
   useTeacherStudents,
   type TeacherGroup,
@@ -202,7 +203,9 @@ function GroupSection({ group, students, allGroups, onRename, refetch }: GroupSe
     },
     onSuccess: async () => {
       await refetch();
+      toastSuccess('Group deleted');
     },
+    onError: (err) => toastError(err, 'Could not delete group'),
   });
 
   const isUngrouped = group == null;
@@ -327,7 +330,9 @@ function StudentRow({
     },
     onSuccess: async () => {
       await refetch();
+      toastSuccess('Student moved');
     },
+    onError: (err) => toastError(err, 'Could not move student'),
   });
 
   const display = student.displayName ?? 'Unnamed student';
@@ -623,7 +628,9 @@ function InviteStudentModal({ opened, onClose }: { opened: boolean; onClose: () 
     mutationFn: rotateInviteCode,
     onSuccess: (next) => {
       queryClient.setQueryData(['teacher_invite_code'], next);
+      toastSuccess('Invite code rotated');
     },
+    onError: (err) => toastError(err, 'Could not rotate invite code'),
   });
 
   const expiresLabel = data?.expires_at

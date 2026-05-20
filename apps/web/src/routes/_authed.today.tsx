@@ -1,12 +1,28 @@
-import { createFileRoute, redirect } from '@tanstack/react-router';
+import { useEffect } from 'react';
+import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router';
 import { Card, Group, Stack, Text } from '@mantine/core';
 import { Moon, Sun, Sunset } from 'lucide-react';
 import { homeRouteForRole } from '../lib/auth';
 import { StreakBadge } from '../today/StreakBadge';
 import { JuzProgressBar } from '../today/JuzProgressBar';
 import { SessionPlanCard } from '../today/SessionPlanCard';
+import { ConnectQuranComBanner } from '../features/integrations/ConnectQuranComBanner';
+import { useInvalidateQfStatus } from '../features/integrations/useQfStatus';
+import { toastError, toastSuccess } from '../lib/toast';
+
+interface TodaySearch {
+  qf?: 'connected' | 'error';
+  qf_reason?: string;
+}
 
 export const Route = createFileRoute('/_authed/today')({
+  validateSearch: (search: Record<string, unknown>): TodaySearch => {
+    const qf = search.qf;
+    return {
+      qf: qf === 'connected' || qf === 'error' ? qf : undefined,
+      qf_reason: typeof search.qf_reason === 'string' ? search.qf_reason : undefined,
+    };
+  },
   beforeLoad: ({ context }) => {
     const { user } = context;
     if (user.role !== 'student') throw redirect({ to: homeRouteForRole(user.role) });
@@ -23,10 +39,27 @@ function greetingFor(date: Date): { icon: typeof Sun; label: string } {
 
 function TodayPage() {
   const { user } = Route.useRouteContext();
+  const search = Route.useSearch();
+  const navigate = useNavigate();
+  const invalidateQf = useInvalidateQfStatus();
   const { icon: GreetIcon, label } = greetingFor(new Date());
+
+  useEffect(() => {
+    if (!search.qf) return;
+    if (search.qf === 'connected') {
+      toastSuccess('Connected to Quran.com');
+      invalidateQf();
+    } else {
+      toastError(`Couldn't connect to Quran.com${search.qf_reason ? ` (${search.qf_reason})` : ''}`);
+    }
+    // Clear the search params so the toast doesn't fire again on re-render
+    navigate({ to: '/today', search: {}, replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search.qf]);
 
   return (
     <Stack maw={840} mx="auto" gap="xl" py="md">
+      <ConnectQuranComBanner />
       {/* Hero strip */}
       <Group justify="space-between" align="flex-end" wrap="wrap" gap="lg">
         <Stack gap={6}>

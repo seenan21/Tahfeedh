@@ -4,6 +4,7 @@ import { ActionIcon, Alert, Button, Center, Container, Group, Loader, Paper, Sta
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import type { LogErrorInput, PostTestSummary, TestRange, TestType } from '@tahfeedh/shared';
 import { supabase } from '../../lib/supabase';
+import { toastError } from '../../lib/toast';
 import { MushafPage } from '../../mushaf/MushafPage';
 import { loggedErrorsToStats } from '../../mushaf/getOverlayMarkers';
 import { ErrorLogModal } from './ErrorLogModal';
@@ -96,16 +97,26 @@ export function LiveTestRoute() {
   };
 
   const handleSubmitError = async (input: LogErrorInput) => {
-    await session.logError(input);
+    try {
+      await session.logError(input);
+    } catch (err) {
+      toastError(err, 'Failed to log error');
+      throw err;
+    }
   };
 
   const handleEndTest = async (rating: import('@tahfeedh/shared').TestRating, notes?: string) => {
-    const s = await session.finishTest(rating, notes);
-    if (test?.started_at) {
-      setFinishedDuration(Math.floor((Date.now() - new Date(test.started_at).getTime()) / 1000));
+    try {
+      const s = await session.finishTest(rating, notes);
+      if (test?.started_at) {
+        setFinishedDuration(Math.floor((Date.now() - new Date(test.started_at).getTime()) / 1000));
+      }
+      setSummary(s);
+      setSummaryOpen(true);
+    } catch (err) {
+      toastError(err, 'Could not end the test');
+      throw err;
     }
-    setSummary(s);
-    setSummaryOpen(true);
   };
 
   const handleSummaryClose = () => {
@@ -182,6 +193,7 @@ export function LiveTestRoute() {
         </Text>
       </Stack>
       <div
+        className="liveTestGrid"
         style={{
           display: 'grid',
           gridTemplateColumns: 'minmax(0, 1fr) 360px',
@@ -189,6 +201,11 @@ export function LiveTestRoute() {
           alignItems: 'start',
         }}
       >
+        <style>{`
+          @media (max-width: 900px) {
+            .liveTestGrid { grid-template-columns: 1fr !important; }
+          }
+        `}</style>
         <Stack gap="sm">
           <Paper p="xs" radius="md" withBorder>
             <Group justify="space-between">

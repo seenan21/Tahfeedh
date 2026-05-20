@@ -208,3 +208,19 @@
 .rail:has(:focus-visible) .footerExpanded {
   display: block;
 }
+
+/* =========================================================================
+ * Mobile sweep (≤ 640px) — rail collapses its hover-expand width so the
+ * overlay panel doesn't dominate narrow viewports. Falling through to
+ * tap-based expansion via :focus-visible (also wired above).
+ * ========================================================================= */
+@media (max-width: 640px) {
+  .rail:hover,
+  .rail:has(:focus-visible) {
+    width: 220px;
+    box-shadow: 12px 0 36px -8px rgba(21, 53, 30, 0.35);
+  }
+  .navItem {
+    padding: 12px 10px;
+  }
+}

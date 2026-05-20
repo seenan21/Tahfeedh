@@ -3,6 +3,7 @@ import { onboardingFinishSchema, type QuranIndex } from '@tahfeedh/shared';
 import { verifyUser, AuthError } from '../auth/verifyUser.js';
 import { supabaseAdmin } from '../supabase.js';
 import { expandSelections } from '../onboarding/expand.js';
+import { pushBookmark } from '../qf/bookmarks.js';
 import quranIndexJson from '../data/quran-index.json' with { type: 'json' };
 
 // The JSON is inferred as a structural literal; the index types use tuples
@@ -31,6 +32,13 @@ onboardingRouter.post('/finish', async (req, res, next) => {
       console.error('[onboarding] commit_onboarding rpc failed', error);
       res.status(500).json({ error: error.message });
       return;
+    }
+
+    // Fire-and-forget QF Bookmarks push for the inProgress marker (or last
+    // selected ayah). Never blocks the response — see DESIGN.md §13.6.
+    const inProgress = parsed.data.selections?.inProgress;
+    if (inProgress) {
+      void pushBookmark(user.id, { surah: inProgress.surah, ayah: inProgress.ayah });
     }
 
     res.json({ ok: true });

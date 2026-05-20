@@ -1,7 +1,7 @@
 # 0024 — M5 Algorithm Completion: Mastery, Fail-Reset, Queue 3 Priority
 
 **Date:** 2026-05-19
-**Status:** Implemented
+**Status:** Partially superseded by 0037 (only the "strong_pass-only promotes" rule; mastery rule, fail behavior, and Queue 2/3 ordering still stand)
 **Milestone:** M5
 
 ## Context

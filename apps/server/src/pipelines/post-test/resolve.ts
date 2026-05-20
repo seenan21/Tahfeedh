@@ -1,9 +1,21 @@
 import type { QuranIndex, TestRange } from '@tahfeedh/shared';
 import { expandPageAyahs, type AyahKey } from '../../memorization/pageAyahs.js';
 
+export interface CoveredPageAyah {
+  page: number;
+  surah: number;
+  ayah: number;
+}
+
 export interface ResolvedRanges {
   coveredAyahs: AyahKey[];
   coveredPages: number[];
+  // (page, surah, ayah) triples for every ayah on every fully-covered page.
+  // submit_test UPSERTs these into memorization_verse so the revision queue's
+  // Queue 2 join (memorization_page → memorization_verse → ayah_review_state)
+  // can find the page's ayahs, lifting tested pages from the flat-priority
+  // Queue 2b fallback into the proper stage machine. See ADR 0038.
+  coveredPageAyahs: CoveredPageAyah[];
 }
 
 /**
@@ -93,13 +105,17 @@ export function resolveTestRanges(ranges: TestRange[], index: QuranIndex): Resol
   }
 
   const coveredPages: number[] = [];
+  const coveredPageAyahs: CoveredPageAyah[] = [];
   for (const p of candidatePages) {
     const pageAyahs = expandPageAyahs(p, index);
     if (pageAyahs.length === 0) continue;
     const allCovered = pageAyahs.every((k) => ayahSet.has(`${k.surah}:${k.ayah}`));
-    if (allCovered) coveredPages.push(p);
+    if (allCovered) {
+      coveredPages.push(p);
+      for (const k of pageAyahs) coveredPageAyahs.push({ page: p, surah: k.surah, ayah: k.ayah });
+    }
   }
   coveredPages.sort((a, b) => a - b);
 
-  return { coveredAyahs, coveredPages };
+  return { coveredAyahs, coveredPages, coveredPageAyahs };
 }

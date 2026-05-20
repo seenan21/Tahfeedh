@@ -215,6 +215,7 @@ testsRouter.post('/:id/finish', async (req, res, next) => {
         notes: body.notes ?? null,
         coveredAyahs: resolved.coveredAyahs,
         coveredPages: resolved.coveredPages,
+        coveredPageAyahs: resolved.coveredPageAyahs,
       },
     });
 

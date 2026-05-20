@@ -2,6 +2,19 @@
 
 ## [Unreleased]
 
+### Fixed — submit_test now populates memorization_verse (ADR 0038, migration 0026)
+- **Gap from ADR 0037 closed.** `submit_test` now UPSERTs `memorization_verse` for every (page, surah, ayah) of every fully-covered page, from a new `coveredPageAyahs` payload field. Tested pages now appear in the revision queue's **Queue 2** with proper stage-machine cadence (1d/3d/7d intervals) instead of the flat-priority Queue 2b fallback. Onboarding-memorized pages still start in Queue 2b but migrate to Queue 2 the first time they're tested.
+- **`apps/server/src/pipelines/post-test/resolve.ts`** — `ResolvedRanges` adds `coveredPageAyahs: Array<{page, surah, ayah}>`. Populated alongside `coveredPages` for every fully-covered page.
+- **`apps/server/src/routes/tests.ts`** — passes `coveredPageAyahs` in the `submit_test` RPC payload.
+- **Migration `0026_submit_test_memorization_verse.sql`** — adds a single `INSERT … ON CONFLICT DO NOTHING` block to `submit_test`. Runs unconditionally (any test type, pass or fail).
+
+### Fixed — Session advancement + revision queue fallback (ADR 0037, migration 0025)
+- **Bug 1: new-lesson slot stuck on the same page after a pass.** `submit_test` page promotion was `UPDATE memorization_page WHERE status='in_progress'`, which matched zero rows for pages Queue 1's frontier walk reached after the single onboarding-seeded `inProgress` page. Promotion is now an `INSERT … ON CONFLICT DO UPDATE` (UPSERT), so pages without a prior row are also promoted. Never downgrades a `mastered` page.
+- **Bug 2: revision queue empty for onboarded students.** `_compute_session_plan` Queue 2 needed `ars.recent_stage IS NOT NULL` and Queue 3 needed `bool_and(ars.graduated_at IS NOT NULL)`. Onboarding-memorized pages have neither (the stage machine only engaged on `newly_memorized + strong_pass`), so they were stranded. New **Queue 2b** picks memorized pages with no stage progression yet, ordered by `page_number asc`. Queue order is now Q2 (active stages, due) → Q2b (never tested) → Q3 (graduated, weighted).
+- **Any pass advances.** ADR 0024's "only `strong_pass` promotes" rule relaxed: `strong_pass` / `excellent` / `good` / `pass_needs_practice` all promote `in_progress → memorized` and engage the Queue 2 stage machine at stage 1 / ready_at = +1 day. Only `needs_work` and `fail` leave the page in `in_progress`. Matches the new framing that sessions aren't capped per day — clicking "Load next session" now genuinely advances the new-lesson slot.
+- **`apps/web/src/today/SessionPlanCard.tsx`** — `readOnly` (teacher drill-in) now hides the inner "Today's plan" eyebrow (the wrapper card already labels it) and switches the title from "Your session at a glance" → "Student's plan for today."
+- **`apps/web/src/components/AppSidebar.module.css`** — sidebar expansion changed from `:focus-within` → `:has(:focus-visible)` across five rules so clicking a nav link (which sets click-focus on the `<Link>`) no longer holds the rail open after the mouse leaves. Keyboard-tab expansion still works.
+
 ### Changed — Error model: scope split + verse-number tap + whole-verse band (ADRs 0034 + 0035)
 - **`packages/shared/src/types.ts`** — `ErrorType` partitioned into `WORD_SCOPE_ERROR_TYPES` (`tajweed`, `pronunciation`, `omission`, `addition`, `mismatch`) and `VERSE_SCOPE_ERROR_TYPES` (`wrong_verse`, `forgotten_verse`, `hesitation`). New `ErrorScope` type + `scopeOfErrorType(t)` helper.
 - **`packages/shared/src/schema.ts`** — `logErrorSchema` gains a refinement: verse-scope types must have `word_position = null`; word-scope types must have `word_position` set. Validates both client and server inserts.

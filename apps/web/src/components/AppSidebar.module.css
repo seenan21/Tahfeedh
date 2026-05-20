@@ -35,7 +35,7 @@
 }
 
 .rail:hover,
-.rail:focus-within {
+.rail:has(:focus-visible) {
   width: 268px;
   box-shadow: 12px 0 36px -8px rgba(21, 53, 30, 0.25);
 }
@@ -66,7 +66,7 @@
 }
 
 .rail:hover .brandArabic,
-.rail:focus-within .brandArabic {
+.rail:has(:focus-visible) .brandArabic {
   width: auto;
   text-align: start;
 }
@@ -84,7 +84,7 @@
 }
 
 .rail:hover .brandEnglish,
-.rail:focus-within .brandEnglish {
+.rail:has(:focus-visible) .brandEnglish {
   opacity: 1;
 }
 
@@ -169,12 +169,12 @@
 }
 
 .rail:hover .label,
-.rail:focus-within .label {
+.rail:has(:focus-visible) .label {
   opacity: 1;
 }
 
 .rail:hover .labelArabic,
-.rail:focus-within .labelArabic {
+.rail:has(:focus-visible) .labelArabic {
   opacity: 0.55;
 }
 
@@ -200,11 +200,11 @@
 }
 
 .rail:hover .footerCollapsed,
-.rail:focus-within .footerCollapsed {
+.rail:has(:focus-visible) .footerCollapsed {
   display: none;
 }
 
 .rail:hover .footerExpanded,
-.rail:focus-within .footerExpanded {
+.rail:has(:focus-visible) .footerExpanded {
   display: block;
 }

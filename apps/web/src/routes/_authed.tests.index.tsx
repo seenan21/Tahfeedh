@@ -438,8 +438,8 @@ function TeacherTestsHistory({ teacherId }: { teacherId: string }) {
             <Stack gap={6}>
               <Text fw={600}>No tests yet</Text>
               <Text size="sm" c="dimmed">
-                Start a witnessed test from a student's drill-in page. Completed tests will appear
-                here.
+                Open a student from the Students tab and start a witnessed test from their page.
+                Completed tests will appear here.
               </Text>
             </Stack>
           </Card>

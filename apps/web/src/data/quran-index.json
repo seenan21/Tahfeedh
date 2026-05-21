@@ -722,15 +722,15 @@
     },
     "121": {
       "surah_start": 5,
-      "ayah_start": 78,
+      "ayah_start": 77,
       "surah_end": 5,
-      "ayah_end": 77
+      "ayah_end": 82
     },
     "122": {
       "surah_start": 5,
-      "ayah_start": 84,
+      "ayah_start": 83,
       "surah_end": 5,
-      "ayah_end": 83
+      "ayah_end": 89
     },
     "123": {
       "surah_start": 5,
@@ -3188,15 +3188,15 @@
     },
     "532": {
       "surah_start": 55,
-      "ayah_start": 19,
+      "ayah_start": 17,
       "surah_end": 55,
-      "ayah_end": 18
+      "ayah_end": 40
     },
     "533": {
       "surah_start": 55,
-      "ayah_start": 42,
+      "ayah_start": 41,
       "surah_end": 55,
-      "ayah_end": 41
+      "ayah_end": 67
     },
     "534": {
       "surah_start": 55,
@@ -3500,15 +3500,15 @@
     },
     "584": {
       "surah_start": 79,
-      "ayah_start": 17,
+      "ayah_start": 16,
       "surah_end": 79,
-      "ayah_end": 16
+      "ayah_end": 46
     },
     "585": {
       "surah_start": 80,
-      "ayah_start": 41,
+      "ayah_start": 1,
       "surah_end": 80,
-      "ayah_end": 40
+      "ayah_end": 42
     },
     "586": {
       "surah_start": 81,
@@ -3547,52 +3547,52 @@
       "ayah_end": 10
     },
     "592": {
-      "surah_start": 88,
-      "ayah_start": 23,
+      "surah_start": 87,
+      "ayah_start": 16,
       "surah_end": 88,
-      "ayah_end": 22
+      "ayah_end": 26
     },
     "593": {
       "surah_start": 89,
-      "ayah_start": 23,
+      "ayah_start": 1,
       "surah_end": 89,
-      "ayah_end": 22
+      "ayah_end": 23
     },
     "594": {
-      "surah_start": 90,
-      "ayah_start": 19,
+      "surah_start": 89,
+      "ayah_start": 24,
       "surah_end": 90,
-      "ayah_end": 18
+      "ayah_end": 20
     },
     "595": {
-      "surah_start": 92,
-      "ayah_start": 10,
+      "surah_start": 91,
+      "ayah_start": 1,
       "surah_end": 92,
-      "ayah_end": 9
-    },
-    "596": {
-      "surah_start": 94,
-      "ayah_start": 3,
-      "surah_end": 94,
-      "ayah_end": 2
-    },
-    "597": {
-      "surah_start": 96,
-      "ayah_start": 13,
-      "surah_end": 96,
       "ayah_end": 12
     },
+    "596": {
+      "surah_start": 92,
+      "ayah_start": 15,
+      "surah_end": 94,
+      "ayah_end": 8
+    },
+    "597": {
+      "surah_start": 95,
+      "ayah_start": 1,
+      "surah_end": 96,
+      "ayah_end": 17
+    },
     "598": {
-      "surah_start": 98,
-      "ayah_start": 6,
+      "surah_start": 97,
+      "ayah_start": 1,
       "surah_end": 98,
-      "ayah_end": 5
+      "ayah_end": 7
     },
     "599": {
-      "surah_start": 100,
-      "ayah_start": 6,
+      "surah_start": 98,
+      "ayah_start": 8,
       "surah_end": 100,
-      "ayah_end": 5
+      "ayah_end": 9
     },
     "600": {
       "surah_start": 100,

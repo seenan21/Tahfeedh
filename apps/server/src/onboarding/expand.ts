@@ -1,17 +1,32 @@
 import type { QuranIndex, OnboardingFinishInput } from '@tahfeedh/shared';
+import { expandPageAyahs } from '../memorization/pageAyahs.js';
 
 export interface AyahKey {
   surah: number;
   ayah: number;
 }
 
+export interface MemorizedVerseRow {
+  surah: number;
+  ayah: number;
+  page: number;
+}
+
 /**
  * The payload shape the commit_onboarding SQL function consumes. See
- * supabase/migrations/0013_session_size_and_onboarding_writes.sql for the
- * function body.
+ * supabase/migrations/0031_onboarding_memorization_verse.sql for the
+ * latest function body.
  */
 export interface CommitOnboardingPayload {
   memorizedPages: number[];
+  /**
+   * Per-ayah expansion of `memorizedPages`. `commit_onboarding` inserts these
+   * into `memorization_verse` so the new revision-queue algorithm (ADR 0050 /
+   * migration 0029) — which JOINs through `memorization_verse` — can see
+   * onboarding-memorized pages immediately. Without this, pages stay invisible
+   * to the queue until a test happens to upsert them (ADR 0038 path).
+   */
+  memorizedVerses: MemorizedVerseRow[];
   inProgress?: {
     page: number;
     verses: AyahKey[];
@@ -51,6 +66,7 @@ export function expandSelections(
   if (input.path === 'fresh') {
     return {
       memorizedPages: [],
+      memorizedVerses: [],
       ayahReviewStates: [],
       hasCompletedQuran: false,
       ...baseSession,
@@ -69,8 +85,16 @@ export function expandSelections(
       }
     }
 
+    const memorizedVerses: MemorizedVerseRow[] = [];
+    for (const page of memorizedPages) {
+      for (const { surah, ayah } of expandPageAyahs(page, index)) {
+        memorizedVerses.push({ surah, ayah, page });
+      }
+    }
+
     return {
       memorizedPages,
+      memorizedVerses,
       ayahReviewStates,
       hasCompletedQuran: true,
       ...baseSession,
@@ -137,8 +161,17 @@ export function expandSelections(
     ayahReviewStates.push({ surah: Number(s), ayah: Number(a) });
   }
 
+  const sortedPages = Array.from(memorizedPages).sort((a, b) => a - b);
+  const memorizedVerses: MemorizedVerseRow[] = [];
+  for (const page of sortedPages) {
+    for (const { surah, ayah } of expandPageAyahs(page, index)) {
+      memorizedVerses.push({ surah, ayah, page });
+    }
+  }
+
   return {
-    memorizedPages: Array.from(memorizedPages).sort((a, b) => a - b),
+    memorizedPages: sortedPages,
+    memorizedVerses,
     inProgress,
     ayahReviewStates,
     hasCompletedQuran: false,

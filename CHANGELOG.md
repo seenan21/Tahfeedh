@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+### Fixed — Onboarded students see revision pages on /today (ADR 0054, migration 0031)
+- **Bug:** an onboarded student with 84 memorized pages got an empty revision queue ("No revision yet"). The 0029 algorithm (ADR 0050) JOINs `memorization_page ⨝ memorization_verse ⨝ ayah_review_state`, but `commit_onboarding` only wrote `memorization_verse` rows for the `inProgress` page. Fully-memorized pages had no bridge rows, so the JOIN dropped them.
+- **`apps/server/src/onboarding/expand.ts`** — `CommitOnboardingPayload` gains a `memorizedVerses: Array<{surah, ayah, page}>` field. For every page in `memorizedPages`, the expander calls the existing `expandPageAyahs` helper and emits the triples.
+- **Migration `0031_onboarding_memorization_verse.sql`** — `commit_onboarding` bulk-inserts those triples into `memorization_verse` with `ON CONFLICT DO NOTHING` (Edit-Memorization re-runs stay idempotent).
+- **`apps/web/src/data/quran-index.json` + `apps/server/src/data/quran-index.json`** — boundary entries for 14 pages (121, 122, 532, 533, 584, 585, 592–599) recomputed using `min/max(surah, ayah)` instead of "first/last word in JSON order." The old logic produced `ayah_start > ayah_end` on pages where an ayah wraps in from the previous page (e.g. 79:16 trailing onto page 584 caused `expandPageAyahs` to emit zero rows for those pages). Boundary changes from e.g. `79:17 → 79:16` (empty) to `79:16 → 79:46` (correct).
+- **One-shot backfill** for the affected student: 1,263 `memorization_verse` rows inserted via `unnest(int[], int[], int[])` from the corrected expansion. Stale `daily_session` row for today deleted so `today_session` recomputes; revision queue now populates as expected.
+
+### Fixed — Today RPC `column reference "session_date" is ambiguous` regression (migration 0030)
+- **`supabase/migrations/0030_refix_session_rpc_ambiguity.sql`** — re-applies the column-qualification fix that ADR 0018 first introduced. The 0029 algorithm rewrite (ADR 0050) lost the `daily_session ds` table aliases inside `today_session` + `load_next_session`, so unqualified `WHERE … session_date = current_date ORDER BY session_index DESC` collided with the `RETURNS TABLE` OUT parameter names of the same name (PG15+ error 42702). Functions now alias every column reference; the revision_kinds threading and new payload shape from 0029 are otherwise unchanged.
+
 ### Added — Teacher mushaf-of-student view + live-test historical overlay (ADRs 0052, 0053)
 - **Teachers can now view any enrolled student's mushaf** at `/students/$studentId/mushaf` (ADR 0052). New `apps/web/src/mushaf/StudentMushafSurface.tsx` is the extracted body of the old `_authed.mushaf.tsx`, parameterized on `{ studentId, viewerRole: 'self' | 'teacher', studentName?, onBack? }`. Same Reader/Tracker UX, same heatmap overlay, same `VerseDetailModal` on verse taps — scoped to the student's data via existing `is_my_student()` RLS (migrations 0008 + 0024).
 - **`apps/web/src/routes/_authed.mushaf.tsx`** rewritten to a thin wrapper that passes `user.id` + `viewerRole='self'`. **`apps/web/src/routes/_authed.students.$studentId.mushaf.tsx`** (NEW) verifies active enrollment, then renders the surface for the teacher with the student's name + a back-to-drill-in handler.

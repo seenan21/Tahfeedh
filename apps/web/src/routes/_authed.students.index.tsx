@@ -97,7 +97,7 @@ function StudentsPage() {
                 margin: 0,
               }}
             >
-              Directory · Groups · Drill-in
+              Your students
             </Text>
           </Stack>
           <Group gap="xs">
@@ -129,7 +129,7 @@ function StudentsPage() {
           <Group justify="center" py="xl">
             <Loader size="sm" color="sage.7" />
             <Text size="sm" c="dimmed">
-              Loading directory…
+              Loading students…
             </Text>
           </Group>
         ) : directory.groups.length === 0 && (directory.studentsByGroup.get(null)?.length ?? 0) === 0 ? (

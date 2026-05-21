@@ -1,7 +1,7 @@
 # 0023 — Error Detail Modal Shows Every Occurrence, Hides Ghosts
 
 **Date:** 2026-05-19
-**Status:** Planned (M7)
+**Status:** Superseded by 0045
 **Milestone:** M7
 
 ## Context

@@ -5,14 +5,13 @@ import {
   Group,
   Modal,
   Radio,
-  SegmentedControl,
   Stack,
   Text,
   TextInput,
   Textarea,
 } from '@mantine/core';
 import { AlertCircle, Search } from 'lucide-react';
-import type { ErrorSeverity, ErrorType, LogErrorInput } from '@tahfeedh/shared';
+import type { ErrorType, LogErrorInput } from '@tahfeedh/shared';
 import { VERSE_SCOPE_ERROR_TYPES, WORD_SCOPE_ERROR_TYPES } from '@tahfeedh/shared';
 import { apiFetch } from '../../api/client';
 import { chapter } from '../../data/quran-data';
@@ -65,7 +64,6 @@ export function ErrorLogModal({ opened, onClose, location, onSubmit }: Props) {
   const defaultType: ErrorType = allowedTypes[0]!;
 
   const [errorType, setErrorType] = useState<ErrorType>(defaultType);
-  const [severity, setSeverity] = useState<ErrorSeverity>('moderate');
   const [note, setNote] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -78,7 +76,6 @@ export function ErrorLogModal({ opened, onClose, location, onSubmit }: Props) {
   useEffect(() => {
     if (opened) {
       setErrorType(defaultType);
-      setSeverity('moderate');
       setNote('');
       setQuery('');
       setResults([]);
@@ -130,7 +127,6 @@ export function ErrorLogModal({ opened, onClose, location, onSubmit }: Props) {
         // word-scope (ADR 0034 — schema validates scope match).
         word_position: location!.word_position == null ? undefined : location!.word_position,
         error_type: errorType,
-        severity,
         teacher_note: note.trim() || undefined,
         related_surah: pick?.surah,
         related_ayah: pick?.ayah,
@@ -195,21 +191,6 @@ export function ErrorLogModal({ opened, onClose, location, onSubmit }: Props) {
           <Text size="xs" c="dimmed" mt={4}>
             {ERROR_TYPE_META[errorType].help}
           </Text>
-        </Stack>
-
-        <Stack gap={4}>
-          <Text size="xs" fw={600} c="dimmed">
-            Severity
-          </Text>
-          <SegmentedControl
-            value={severity}
-            onChange={(v) => setSeverity(v as ErrorSeverity)}
-            data={[
-              { label: 'Minor', value: 'minor' },
-              { label: 'Moderate', value: 'moderate' },
-              { label: 'Major', value: 'major' },
-            ]}
-          />
         </Stack>
 
         {errorType === 'wrong_verse' && (

@@ -2,6 +2,30 @@
 
 ## [Unreleased]
 
+### Changed — Verse-tap modal + explicit bookmarks (ADR 0045)
+- **My Mushaf tap behaviour collapsed to a single verse-level handler.** `MushafPage` gains an `onVerseTap` prop that short-circuits the word-vs-verse-end split; `_authed.mushaf.tsx` wires it so any tap inside the mushaf opens a unified `VerseDetailModal`. The overlay rendering (word tints, whole-verse band, count badges, intensity ramp) is unchanged. Live-test surface still uses `onWordTap` + `onVerseNumberTap` (it needs the distinction for logging).
+- **`apps/web/src/mushaf/ErrorDetailModal.tsx` → `VerseDetailModal.tsx`.** New body order: `VerseStrip` (the verse rendered in the mushaf's QPC font with the same marker tints) → `VerseAudioPlayer` (gains a Stop `ActionIcon` next to Play/Pause) → `VerseBookmarkButton` → the existing error history (verse-scope group + per-word groups + ghost-error reveal, teacher notes preserved). Empty case reads "No errors logged on this verse yet."
+- **`apps/web/src/mushaf/VerseStrip.tsx`** (NEW) — per-verse render that loads the verse's page JSON, filters words to the target ayah, and uses the same `WordSpan` + marker computation as `MushafPage`. Verses that straddle two pages load both. `WordSpan` extracted into `apps/web/src/mushaf/WordSpan.tsx` so both surfaces share visuals.
+- **`apps/web/src/mushaf/VerseBookmarkButton.tsx`** (NEW) — connected → full-width "Bookmark on Quran.com" button POSTing to `/api/qf-user/bookmarks`, swaps to "Saved" affordance after success (in-memory, no GET-list dedupe). Disconnected → contextual "Connect Quran.com to bookmark this verse" CTA with a Connect button.
+- **`apps/server/src/qf/bookmarks.ts`** — `pushBookmark` → `addBookmark`; drops `isReading: true` (regular saved bookmark, not the singleton "currently reading" marker); returns `Promise<boolean>` so the route surfaces failures. `pushBookmarksAll` deleted. Bookmarks now route to a per-user **"Tahfeedh" collection** on Quran.com (lazy-resolved via `GET /v1/collections` → fallback `POST /v1/collections {name:'Tahfeedh'}` on first save, in-memory cached per user, degrades to `__default__` on failure).
+- **`apps/server/src/routes/qfUser.ts`** — new `POST /bookmarks` endpoint mirroring the goals proxy shape: validates `{surah, ayah}`, refuses with 409 when not connected, returns 502 on QF write failure.
+- **Automatic bookmark pushes removed.** `apps/server/src/routes/onboarding.ts` no longer pushes the `inProgress` marker on finish; `apps/server/src/routes/tests.ts` no longer pushes the frontier ayah on test finish. Bookmarks are user-explicit only from now on.
+
+### Changed — Error severity grading removed (ADR 0046, migration 0027)
+- **Severity dropped from the entire stack.** "An error is an error" — heatmap intensity was always derived from `occurrence_count / (1 + tests_since_last_occurrence)` (no severity input), so removing severity has zero impact on overlay rendering.
+- **Migration `0027_drop_error_severity.sql`** — `ALTER TABLE error_log DROP COLUMN IF EXISTS severity`. The `error_severity` PG enum type is left in place (unused) to avoid CASCADE risk.
+- **`packages/shared`** — `ErrorSeverity` type deleted; `errorSeveritySchema` deleted; `severity` removed from `logErrorSchema`.
+- **`apps/server/src/routes/tests.ts`** — `severity` dropped from the `error_log` INSERT.
+- **Web UI**: removed the SegmentedControl from `ErrorLogModal`, the badge from `LoggedErrorsList` + `VerseDetailModal` (`SEVERITY_COLOR` const + `OccurrenceRow` chip), severity from `TestRecapView`'s select + mapper, and `severity` from `useTestSession`'s `LoggedError` + entry shape.
+- **`scripts/seed.ts`** — `Severity` type + every per-error severity field stripped.
+- **Teacher notes preserved** on every occurrence row in `VerseDetailModal` and the recap — that was the explicit ask alongside the severity cut.
+
+### Fixed — QF OAuth scope set trimmed to granted scopes (ADR 0044)
+- **OAuth was failing with `invalid_scope … 'note.create'`.** Probed `/oauth2/auth` per-scope against the live client_id and confirmed the QF app config only grants three of the requested user scopes: `bookmark`, `goal`, `streak.read`. Three are denied: `note.create`, `reading_session.create`, `profile`.
+- **`apps/server/src/routes/qfAuth.ts`** — `SCOPES` trimmed to `['bookmark', 'goal', 'streak.read']`; the rejection-reason comment block now lists the denied scopes for future reference.
+- **`apps/server/src/routes/tests.ts`** — removed the `pushNote(...)` call + import; teacher-notes stay local-only until `note.create` is granted. The teacher_note column on `error_log` is unchanged and still surfaces in `ErrorDetailModal` + recap.
+- **`apps/server/src/qf/notes.ts`** — deleted (unreferenced). Restore from git history if/when the scope is granted.
+
 ### Added — Mushaf surah jump + verse audio + header QF pill + Home rename (ADRs 0041, 0042, 0043)
 - **Mushaf reader toolbar** restructured into a CSS-grid three-column layout (`apps/web/src/routes/_authed.mushaf.tsx` + `apps/web/src/mushaf/MushafRoute.module.css`). Left: new searchable surah `Select` covering all 114 chapters (search matches id, Latin, or Arabic name) — picking a chapter jumps to its first page; the Select value tracks `quranIndex.pages[N].surah_start` so prev/next/jump-to-page keep the dropdown in sync. Center: the prev / page · juz / next page flipper (moved from the left). Right: existing Show-errors Switch + Jump-to-page NumberInput. Mobile (≤760px) collapses to a single column.
 - **`apps/web/src/mushaf/VerseAudioPlayer.tsx`** (NEW) — compact Play/Pause + playback-speed (0.5× → 2×) pill for a single ayah. Audio sourced from the EveryAyah Ḥusary 128kbps CDN (no auth, no proxy). Mounted at the top of `ErrorDetailModal` so opening an error object shows "Listen — Khalil al-Ḥusary · S:A" right above the logged errors. Resets and reloads when the modal is reused for a different verse; falls back to "Audio unavailable" on `<audio onError>`.

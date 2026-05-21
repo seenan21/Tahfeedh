@@ -55,7 +55,6 @@ type ErrorType =
   | 'forgotten_verse'
   | 'hesitation';
 
-type Severity = 'minor' | 'moderate' | 'major';
 type Rating = 'fail' | 'needs_work' | 'pass_needs_practice' | 'good' | 'strong_pass' | 'excellent';
 
 // -------------------------------------------------------------------------
@@ -299,7 +298,6 @@ interface ErrorSpec {
   ayah: number;
   word_position: number | null;
   error_type: ErrorType;
-  severity: Severity;
   teacher_note: string | null;
   related_surah?: number;
   related_ayah?: number;
@@ -375,14 +373,11 @@ function buildAhmadTests(studentId: string, teacherId: string): TestSpec[] {
       if (!a) continue;
       const isVerseScope = rng() < 0.25;
       const type: ErrorType = isVerseScope ? pick(verseErrTypes) : pick(wordErrTypes);
-      const severity: Severity =
-        rng() < 0.25 ? 'major' : rng() < 0.55 ? 'moderate' : 'minor';
       errors.push({
         surah: a.surah,
         ayah: a.ayah,
         word_position: randomWord(isVerseScope ? 'verse' : 'word'),
         error_type: type,
-        severity,
         teacher_note:
           rng() < 0.35
             ? pick([
@@ -482,7 +477,6 @@ function buildYusufTests(studentId: string, teacherId: string): TestSpec[] {
         ayah: a.ayah,
         word_position: between(1, 6),
         error_type: pick(wordErrTypes),
-        severity: rng() < 0.7 ? 'minor' : 'moderate',
         teacher_note: rng() < 0.5 ? pick([
           'Slight overcompensation on the madd.',
           'Brief slip — clean otherwise.',
@@ -568,14 +562,12 @@ async function insertTest(t: TestSpec): Promise<void> {
       ayah: e.ayah,
       word_position: e.word_position,
       error_type: e.error_type,
-      severity: e.severity,
     })),
     recurring: recurringErrors.map((e) => ({
       surah: e.surah,
       ayah: e.ayah,
       word_position: e.word_position,
       error_type: e.error_type,
-      severity: e.severity,
     })),
     cleared: [] as unknown[],
   };
@@ -612,7 +604,6 @@ async function insertTest(t: TestSpec): Promise<void> {
       word_position: e.word_position,
       word_position_end: null as number | null,
       error_type: e.error_type,
-      severity: e.severity,
       teacher_note: e.teacher_note,
       related_surah: e.related_surah ?? null,
       related_ayah: e.related_ayah ?? null,

@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { env } from '../env.js';
 import { verifyUser, AuthError } from '../auth/verifyUser.js';
 import { getUserAccessToken } from '../qf/userTokens.js';
+import { addBookmark } from '../qf/bookmarks.js';
 import { supabaseAdmin } from '../supabase.js';
 
 export const qfUserRouter = Router();
@@ -164,6 +165,41 @@ qfUserRouter.delete('/goals/:qfGoalId', async (req, res, next) => {
       return;
     }
     res.json({ connected: true, ok: true });
+  } catch (err) {
+    if (err instanceof AuthError) {
+      res.status(err.status).json({ error: err.message });
+      return;
+    }
+    next(err);
+  }
+});
+
+// =====================================================================
+// POST /api/qf-user/bookmarks
+// Explicit user-driven save of an ayah as a regular bookmark in the
+// student's default QF collection. ADR 0045 — replaces the previous
+// automatic "frontier" pushes that ran after onboarding finish + each
+// test finish.
+// =====================================================================
+qfUserRouter.post('/bookmarks', async (req, res, next) => {
+  try {
+    const user = await verifyUser(req);
+    const body = req.body as Partial<{ surah: number; ayah: number }>;
+    if (!Number.isInteger(body.surah) || !Number.isInteger(body.ayah)) {
+      res.status(400).json({ error: 'surah and ayah are required integers' });
+      return;
+    }
+    const token = await getUserAccessToken(user.id);
+    if (!token) {
+      res.status(409).json({ error: 'not connected to Quran.com' });
+      return;
+    }
+    const ok = await addBookmark(user.id, { surah: body.surah!, ayah: body.ayah! });
+    if (!ok) {
+      res.status(502).json({ error: 'QF bookmark write failed' });
+      return;
+    }
+    res.json({ ok: true });
   } catch (err) {
     if (err instanceof AuthError) {
       res.status(err.status).json({ error: err.message });

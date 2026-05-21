@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { ActionIcon, Group, Select, Text } from '@mantine/core';
-import { Pause, Play, Volume2 } from 'lucide-react';
+import { ActionIcon, Group, Select, Text, Tooltip } from '@mantine/core';
+import { Pause, Play, Square, Volume2 } from 'lucide-react';
 
 interface Props {
   surah: number;
@@ -33,6 +33,7 @@ function husaryUrl(surah: number, ayah: number): string {
 export function VerseAudioPlayer({ surah, ayah }: Props) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [progressed, setProgressed] = useState(false);
   const [rate, setRate] = useState('1');
   const [errored, setErrored] = useState(false);
 
@@ -45,6 +46,7 @@ export function VerseAudioPlayer({ surah, ayah }: Props) {
     el.pause();
     el.currentTime = 0;
     setIsPlaying(false);
+    setProgressed(false);
     setErrored(false);
     el.load();
   }, [src]);
@@ -70,6 +72,17 @@ export function VerseAudioPlayer({ surah, ayah }: Props) {
     }
   }
 
+  function stop() {
+    const el = audioRef.current;
+    if (!el) return;
+    el.pause();
+    el.currentTime = 0;
+    setIsPlaying(false);
+    setProgressed(false);
+  }
+
+  const stopDisabled = errored || (!isPlaying && !progressed);
+
   return (
     <Group
       gap="sm"
@@ -93,6 +106,19 @@ export function VerseAudioPlayer({ surah, ayah }: Props) {
       >
         {isPlaying ? <Pause size={16} /> : <Play size={16} />}
       </ActionIcon>
+      <Tooltip label="Stop" withArrow>
+        <ActionIcon
+          size="lg"
+          radius="xl"
+          variant="light"
+          color="sage.7"
+          onClick={stop}
+          aria-label="Stop recitation"
+          disabled={stopDisabled}
+        >
+          <Square size={14} />
+        </ActionIcon>
+      </Tooltip>
       <Group gap={6} align="center" wrap="nowrap" style={{ minWidth: 0, flex: 1 }}>
         <Volume2 size={14} style={{ opacity: 0.7, flexShrink: 0 }} />
         <Text size="xs" c="dimmed" style={{ whiteSpace: 'nowrap' }}>
@@ -115,9 +141,15 @@ export function VerseAudioPlayer({ surah, ayah }: Props) {
         ref={audioRef}
         src={src}
         preload="none"
-        onPlay={() => setIsPlaying(true)}
+        onPlay={() => {
+          setIsPlaying(true);
+          setProgressed(true);
+        }}
         onPause={() => setIsPlaying(false)}
-        onEnded={() => setIsPlaying(false)}
+        onEnded={() => {
+          setIsPlaying(false);
+          setProgressed(false);
+        }}
         onError={() => {
           setErrored(true);
           setIsPlaying(false);

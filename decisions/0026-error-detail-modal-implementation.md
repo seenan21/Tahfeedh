@@ -1,7 +1,7 @@
 # 0026 — Error Detail Modal Implementation
 
 **Date:** 2026-05-19
-**Status:** Implemented
+**Status:** Superseded by 0045
 **Milestone:** M7
 **Implements:** ADR 0023 (design intent)
 

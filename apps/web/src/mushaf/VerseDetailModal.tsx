@@ -13,20 +13,37 @@ import {
 } from '@mantine/core';
 import { useQuery } from '@tanstack/react-query';
 import { Eye, EyeOff, MessageSquare } from 'lucide-react';
-import type { ErrorLocationStatsRow, ErrorSeverity, ErrorType } from '@tahfeedh/shared';
+import type { ErrorLocationStatsRow, ErrorType } from '@tahfeedh/shared';
 import { scopeOfErrorType } from '@tahfeedh/shared';
 import { supabase } from '../lib/supabase';
 import { chapter } from '../data/quran-data';
-import { ERROR_TYPE_COLOR, type OverlayMarker } from './getOverlayMarkers';
+import { ERROR_TYPE_COLOR } from './getOverlayMarkers';
 import { VerseAudioPlayer } from './VerseAudioPlayer';
+import { VerseBookmarkButton } from './VerseBookmarkButton';
+import { VerseStrip } from './VerseStrip';
 
-interface ErrorDetailModalProps {
+/**
+ * ADR 0045 — unified verse-tap modal.
+ *
+ * Replaces the previous word-vs-verse split in `ErrorDetailModal`. Now every
+ * tap inside the mushaf opens this modal scoped to the verse. Contents
+ * (top → bottom):
+ *
+ *   1. VerseStrip — the verse rendered in the mushaf's per-page QPC font with
+ *      the same word marker / whole-verse band tints.
+ *   2. VerseAudioPlayer — Khalil al-Ḥusary recitation with play/pause/stop +
+ *      speed control.
+ *   3. VerseBookmarkButton — explicit "save to Quran.com" or Connect CTA.
+ *   4. The full per-occurrence error history (verse-scope group + per-word
+ *      groups + ghost-error reveal), unchanged from the previous modal.
+ */
+interface VerseDetailModalProps {
   studentId: string;
-  /** When non-null, the modal is open at this marker's location. */
-  marker: OverlayMarker | null;
-  /** Stats rows (already loaded by the parent for overlay rendering). The
-   *  modal looks up `cleared` status per signature here, avoiding a second
-   *  query. ADR 0023. */
+  verse: { surah: number; ayah: number } | null;
+  /** Stats rows already loaded by the parent for overlay rendering. The modal
+   *  reads `cleared` per signature from here, avoiding a second query (ADR
+   *  0023), and feeds them to `VerseStrip` so the in-modal verse render keeps
+   *  the same heatmap tints as the page. */
   stats: ErrorLocationStatsRow[];
   onClose: () => void;
 }
@@ -38,7 +55,6 @@ interface ErrorLogRow {
   ayah_number: number;
   word_position: number | null;
   error_type: ErrorType;
-  severity: ErrorSeverity;
   teacher_note: string | null;
   related_surah: number | null;
   related_ayah: number | null;
@@ -46,30 +62,21 @@ interface ErrorLogRow {
   created_at: string;
 }
 
-async function fetchErrorLogAtLocation(
+async function fetchErrorLogAtVerse(
   studentId: string,
   surah: number,
   ayah: number,
-  // 'word' → filter by word_position; 'verse' → drill-up, fetch every log on the
-  // ayah (any word_position). ADR 0035.
-  scope: 'word' | 'verse',
-  wordPosition: number | null,
 ): Promise<ErrorLogRow[]> {
-  let q = supabase
+  const { data, error } = await supabase
     .from('error_log')
     .select(
-      'id, test_id, surah_number, ayah_number, word_position, error_type, severity, ' +
+      'id, test_id, surah_number, ayah_number, word_position, error_type, ' +
         'teacher_note, related_surah, related_ayah, signature, created_at',
     )
     .eq('student_id', studentId)
     .eq('surah_number', surah)
     .eq('ayah_number', ayah)
     .order('created_at', { ascending: false });
-  if (scope === 'word') {
-    if (wordPosition == null) q = q.is('word_position', null);
-    else q = q.eq('word_position', wordPosition);
-  }
-  const { data, error } = await q;
   if (error) throw error;
   return (data as unknown as ErrorLogRow[] | null) ?? [];
 }
@@ -85,62 +92,35 @@ function formatDateTime(iso: string): string {
   });
 }
 
-const SEVERITY_COLOR: Record<ErrorSeverity, string> = {
-  minor: 'sage.5',
-  moderate: 'honey.5',
-  major: 'brick.7',
-};
-
 interface VerseGroup {
   verseScope: Map<ErrorType, ErrorLogRow[]>;
   byWord: Map<number, Map<ErrorType, ErrorLogRow[]>>;
   ghosts: ErrorLogRow[];
 }
 
-interface WordGroup {
-  byType: Map<ErrorType, ErrorLogRow[]>;
-  ghosts: ErrorLogRow[];
-}
-
-export function ErrorDetailModal({
+export function VerseDetailModal({
   studentId,
-  marker,
+  verse,
   stats,
   onClose,
-}: ErrorDetailModalProps) {
-  const open = marker != null;
+}: VerseDetailModalProps) {
+  const open = verse != null;
   const [showGhosts, setShowGhosts] = useState(false);
 
-  const isVerseDrillUp = marker?.scope === 'verse';
-
   const { data: rows, isLoading } = useQuery({
-    queryKey: [
-      'error_log_at_location',
-      studentId,
-      marker?.surah,
-      marker?.ayah,
-      isVerseDrillUp ? 'verse-drillup' : marker?.wordPosition ?? 'verse',
-    ],
-    queryFn: () =>
-      fetchErrorLogAtLocation(
-        studentId,
-        marker!.surah,
-        marker!.ayah,
-        isVerseDrillUp ? 'verse' : 'word',
-        marker?.wordPosition ?? null,
-      ),
+    queryKey: ['error_log_at_verse', studentId, verse?.surah, verse?.ayah],
+    queryFn: () => fetchErrorLogAtVerse(studentId, verse!.surah, verse!.ayah),
     enabled: open,
     staleTime: 15_000,
   });
 
-  // Build a Set of "cleared" signatures from stats.
   const clearedSignatures = useMemo(() => {
     const s = new Set<string>();
     for (const row of stats) if (row.cleared) s.add(row.signature);
     return s;
   }, [stats]);
 
-  const grouped = useMemo<VerseGroup | WordGroup | null>(() => {
+  const grouped = useMemo<VerseGroup | null>(() => {
     if (!rows) return null;
     const active: ErrorLogRow[] = [];
     const ghosts: ErrorLogRow[] = [];
@@ -148,51 +128,32 @@ export function ErrorDetailModal({
       if (clearedSignatures.has(r.signature)) ghosts.push(r);
       else active.push(r);
     }
-
-    if (isVerseDrillUp) {
-      const verseScope = new Map<ErrorType, ErrorLogRow[]>();
-      const byWord = new Map<number, Map<ErrorType, ErrorLogRow[]>>();
-      for (const r of active) {
-        if (r.word_position == null) {
-          const list = verseScope.get(r.error_type);
-          if (list) list.push(r);
-          else verseScope.set(r.error_type, [r]);
-        } else {
-          let wordMap = byWord.get(r.word_position);
-          if (!wordMap) {
-            wordMap = new Map<ErrorType, ErrorLogRow[]>();
-            byWord.set(r.word_position, wordMap);
-          }
-          const list = wordMap.get(r.error_type);
-          if (list) list.push(r);
-          else wordMap.set(r.error_type, [r]);
-        }
-      }
-      return { verseScope, byWord, ghosts };
-    }
-
-    const byType = new Map<ErrorType, ErrorLogRow[]>();
+    const verseScope = new Map<ErrorType, ErrorLogRow[]>();
+    const byWord = new Map<number, Map<ErrorType, ErrorLogRow[]>>();
     for (const r of active) {
-      const list = byType.get(r.error_type);
-      if (list) list.push(r);
-      else byType.set(r.error_type, [r]);
+      if (r.word_position == null) {
+        const list = verseScope.get(r.error_type);
+        if (list) list.push(r);
+        else verseScope.set(r.error_type, [r]);
+      } else {
+        let wordMap = byWord.get(r.word_position);
+        if (!wordMap) {
+          wordMap = new Map<ErrorType, ErrorLogRow[]>();
+          byWord.set(r.word_position, wordMap);
+        }
+        const list = wordMap.get(r.error_type);
+        if (list) list.push(r);
+        else wordMap.set(r.error_type, [r]);
+      }
     }
-    return { byType, ghosts };
-  }, [rows, clearedSignatures, isVerseDrillUp]);
+    return { verseScope, byWord, ghosts };
+  }, [rows, clearedSignatures]);
 
-  const surahName = marker ? chapter(marker.surah)?.name_simple ?? `Surah ${marker.surah}` : '';
-  const locationLabel = marker
-    ? marker.scope === 'verse'
-      ? `${surahName} · ayah ${marker.ayah} · whole verse`
-      : `${surahName} · ayah ${marker.ayah} · word ${marker.wordPosition}`
-    : '';
+  const surahName = verse ? chapter(verse.surah)?.name_simple ?? `Surah ${verse.surah}` : '';
+  const locationLabel = verse ? `${surahName} · ayah ${verse.ayah}` : '';
 
   const isEmpty = grouped
-    ? isVerseDrillUp
-      ? (grouped as VerseGroup).verseScope.size === 0 &&
-        (grouped as VerseGroup).byWord.size === 0 &&
-        grouped.ghosts.length === 0
-      : (grouped as WordGroup).byType.size === 0 && grouped.ghosts.length === 0
+    ? grouped.verseScope.size === 0 && grouped.byWord.size === 0 && grouped.ghosts.length === 0
     : false;
 
   return (
@@ -205,7 +166,7 @@ export function ErrorDetailModal({
       title={
         <Stack gap={2}>
           <Text size="xs" tt="uppercase" c="dimmed" fw={700} lts={0.8}>
-            Error history
+            Verse
           </Text>
           <Text fw={700} fz="md">
             {locationLabel}
@@ -216,32 +177,35 @@ export function ErrorDetailModal({
       radius="lg"
       centered
     >
-      {marker && (
-        <Stack gap={6} mb="sm">
-          <Text size="xs" tt="uppercase" c="dimmed" fw={700} lts={0.8}>
-            Listen to this verse
-          </Text>
-          <VerseAudioPlayer surah={marker.surah} ayah={marker.ayah} />
+      {verse && (
+        <Stack gap="sm" mb="sm">
+          <VerseStrip surah={verse.surah} ayah={verse.ayah} overlays={stats} />
+          <VerseAudioPlayer surah={verse.surah} ayah={verse.ayah} />
+          <VerseBookmarkButton surah={verse.surah} ayah={verse.ayah} />
         </Stack>
       )}
+
+      <Divider mb="sm" />
+
+      <Stack gap={4} mb="xs">
+        <Text size="xs" tt="uppercase" c="dimmed" fw={700} lts={0.8}>
+          Error history
+        </Text>
+      </Stack>
+
       {isLoading || !grouped ? (
         <Stack gap="sm">
           <Skeleton height={64} radius="md" />
           <Skeleton height={64} radius="md" />
-          <Skeleton height={64} radius="md" />
         </Stack>
       ) : isEmpty ? (
-        <Text c="dimmed" ta="center" py="xl">
-          No occurrences logged at this location yet.
+        <Text c="dimmed" ta="center" py="xl" size="sm">
+          No errors logged on this verse yet.
         </Text>
       ) : (
-        <ScrollArea h={460} type="auto" offsetScrollbars>
+        <ScrollArea h={360} type="auto" offsetScrollbars>
           <Stack gap="md">
-            {isVerseDrillUp ? (
-              <VerseDrillUpBody group={grouped as VerseGroup} />
-            ) : (
-              <WordBody group={grouped as WordGroup} />
-            )}
+            <VerseDrillUpBody group={grouped} />
 
             {grouped.ghosts.length > 0 && (
               <>
@@ -289,16 +253,6 @@ export function ErrorDetailModal({
         </ScrollArea>
       )}
     </Modal>
-  );
-}
-
-function WordBody({ group }: { group: WordGroup }) {
-  return (
-    <>
-      {[...group.byType.entries()].map(([type, list]) => (
-        <TypeGroup key={type} type={type} list={list} />
-      ))}
-    </>
   );
 }
 
@@ -388,9 +342,6 @@ function OccurrenceRow({ row, ghost }: { row: ErrorLogRow; ghost: boolean }) {
       <Stack gap={6}>
         <Group justify="space-between" align="center" wrap="nowrap" gap="xs">
           <Group gap={6} align="center" wrap="nowrap">
-            <Badge size="xs" color={SEVERITY_COLOR[row.severity]} variant="light">
-              {row.severity}
-            </Badge>
             {ghost && (
               <Badge size="xs" color="gray" variant="light">
                 ghost

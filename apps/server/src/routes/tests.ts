@@ -8,8 +8,6 @@ import {
 import { verifyUser, AuthError } from '../auth/verifyUser.js';
 import { supabaseAdmin } from '../supabase.js';
 import { resolveTestRanges } from '../pipelines/post-test/resolve.js';
-import { pushBookmark } from '../qf/bookmarks.js';
-import { pushNote } from '../qf/notes.js';
 import quranIndexJson from '../data/quran-index.json' with { type: 'json' };
 
 const quranIndex = quranIndexJson as unknown as QuranIndex;
@@ -142,7 +140,6 @@ testsRouter.post('/:id/error', async (req, res, next) => {
         word_position: body.word_position ?? null,
         word_position_end: body.word_position_end ?? null,
         error_type: body.error_type,
-        severity: body.severity,
         teacher_note: body.teacher_note ?? null,
         related_surah: body.related_surah ?? null,
         related_ayah: body.related_ayah ?? null,
@@ -156,15 +153,9 @@ testsRouter.post('/:id/error', async (req, res, next) => {
       return;
     }
 
-    // Fire-and-forget sync of the teacher's note to QF Notes. Never blocks
-    // the response; failures are logged inside pushNote.
-    if (body.teacher_note && body.teacher_note.trim().length > 0) {
-      void pushNote(testRow.student_id, {
-        body: body.teacher_note,
-        surah: body.surah,
-        ayah: body.ayah,
-      });
-    }
+    // Note: teacher_note → QF Notes sync is gated on the `note.create` scope,
+    // which is not granted to this client's QF app config (see qfAuth.ts).
+    // Notes stay local-only until the scope is added.
 
     res.json({ id: data.id, signature: data.signature });
   } catch (err) {
@@ -238,13 +229,8 @@ testsRouter.post('/:id/finish', async (req, res, next) => {
       return;
     }
 
-    // Fire-and-forget QF Bookmarks push for the student's furthest ayah on
-    // this test — represents "where they are now" in their hifz frontier.
-    // Skipped silently if the student has no qf_user_token row.
-    if (resolved.coveredPageAyahs.length > 0) {
-      const last = resolved.coveredPageAyahs[resolved.coveredPageAyahs.length - 1]!;
-      void pushBookmark(testRow.student_id, { surah: last.surah, ayah: last.ayah });
-    }
+    // ADR 0045 — automatic "frontier" bookmark to QF removed. Bookmarks are
+    // now user-explicit only, triggered from the My Mushaf verse modal.
 
     res.json({ ok: true, summary: data });
   } catch (err) {

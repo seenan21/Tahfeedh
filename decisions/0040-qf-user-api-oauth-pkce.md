@@ -1,7 +1,7 @@
 # 0040 — QF User API OAuth (PKCE) + Bookmarks + Goals + Streak Swap
 
 **Date:** 2026-05-20
-**Status:** Implemented
+**Status:** Implemented (bookmark semantics superseded by 0045)
 **Milestone:** M8
 
 ## Context

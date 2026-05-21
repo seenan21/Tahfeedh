@@ -2,7 +2,6 @@ import { useCallback, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import type {
   ErrorType,
-  ErrorSeverity,
   LogErrorInput,
   PostTestSummary,
   TestRating,
@@ -22,7 +21,6 @@ export interface LoggedError {
   word_position: number | null;
   word_position_end: number | null;
   error_type: ErrorType;
-  severity: ErrorSeverity;
   teacher_note: string | null;
   related_surah: number | null;
   related_ayah: number | null;
@@ -51,7 +49,6 @@ export function useTestSession(testId: string, studentId: string) {
         word_position: input.word_position ?? null,
         word_position_end: input.word_position_end ?? null,
         error_type: input.error_type,
-        severity: input.severity ?? 'moderate',
         teacher_note: input.teacher_note ?? null,
         related_surah: input.related_surah ?? null,
         related_ayah: input.related_ayah ?? null,

@@ -83,7 +83,6 @@ export const errorTypeSchema = z.enum([
   'forgotten_verse',
   'hesitation',
 ]);
-export const errorSeveritySchema = z.enum(['minor', 'moderate', 'major']);
 
 export const testCreateSchema = z
   .object({
@@ -113,7 +112,6 @@ export const logErrorSchema = z
     word_position: z.number().int().min(1).optional(),
     word_position_end: z.number().int().min(1).optional(),
     error_type: errorTypeSchema,
-    severity: errorSeveritySchema.default('moderate'),
     teacher_note: z.string().trim().max(2000).optional(),
     related_surah: z.number().int().min(1).max(114).optional(),
     related_ayah: z.number().int().min(1).optional(),

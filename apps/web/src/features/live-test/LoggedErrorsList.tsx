@@ -67,9 +67,6 @@ export function LoggedErrorsList({
                       <Badge size="xs" variant="light" color={scope === 'verse' ? 'brick' : 'sage'}>
                         {scope}
                       </Badge>
-                      <Badge size="xs" variant="light">
-                        {e.severity}
-                      </Badge>
                     </Group>
                     <Text size="xs" fw={600}>
                       {ch?.name_simple} {e.surah}:{e.ayah}

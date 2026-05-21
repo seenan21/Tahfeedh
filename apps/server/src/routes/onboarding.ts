@@ -3,7 +3,6 @@ import { onboardingFinishSchema, type QuranIndex } from '@tahfeedh/shared';
 import { verifyUser, AuthError } from '../auth/verifyUser.js';
 import { supabaseAdmin } from '../supabase.js';
 import { expandSelections } from '../onboarding/expand.js';
-import { pushBookmark } from '../qf/bookmarks.js';
 import quranIndexJson from '../data/quran-index.json' with { type: 'json' };
 
 // The JSON is inferred as a structural literal; the index types use tuples
@@ -34,12 +33,8 @@ onboardingRouter.post('/finish', async (req, res, next) => {
       return;
     }
 
-    // Fire-and-forget QF Bookmarks push for the inProgress marker (or last
-    // selected ayah). Never blocks the response — see DESIGN.md §13.6.
-    const inProgress = parsed.data.selections?.inProgress;
-    if (inProgress) {
-      void pushBookmark(user.id, { surah: inProgress.surah, ayah: inProgress.ayah });
-    }
+    // ADR 0045 — automatic "frontier" bookmark to QF removed. Bookmarks are
+    // now user-explicit only, triggered from the My Mushaf verse modal.
 
     res.json({ ok: true });
   } catch (err) {

@@ -16,7 +16,6 @@ import {
 } from '@mantine/core';
 import { ArrowLeft, CheckCircle2, GraduationCap, MessageSquare } from 'lucide-react';
 import type {
-  ErrorSeverity,
   ErrorType,
   PostTestSummary,
   TestMode,
@@ -52,7 +51,6 @@ interface ErrorLogRow {
   word_position: number | null;
   word_position_end: number | null;
   error_type: ErrorType;
-  severity: ErrorSeverity;
   teacher_note: string | null;
   related_surah: number | null;
   related_ayah: number | null;
@@ -82,7 +80,7 @@ export function TestRecapView({ testId }: { testId: string }) {
       supabase
         .from('error_log')
         .select(
-          'id, signature, surah_number, ayah_number, word_position, word_position_end, error_type, severity, teacher_note, related_surah, related_ayah, created_at',
+          'id, signature, surah_number, ayah_number, word_position, word_position_end, error_type, teacher_note, related_surah, related_ayah, created_at',
         )
         .eq('test_id', testId)
         .order('created_at', { ascending: true }),
@@ -289,7 +287,6 @@ function toLoggedError(row: ErrorLogRow): LoggedError {
     word_position: row.word_position,
     word_position_end: row.word_position_end,
     error_type: row.error_type,
-    severity: row.severity,
     teacher_note: row.teacher_note,
     related_surah: row.related_surah,
     related_ayah: row.related_ayah,

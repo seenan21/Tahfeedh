@@ -14,12 +14,14 @@ export function IntroHadith() {
         ta="center"
         style={{
           fontFamily: '"Scheherazade New", serif',
-          fontWeight: 400,
+          fontWeight: 500,
           fontSize: 24,
           lineHeight: 1.6,
           direction: 'rtl',
           maxWidth: 540,
           margin: 0,
+          color: '#E8C77A',
+          textShadow: '0 1px 12px rgba(0, 0, 0, 0.55), 0 0 2px rgba(0, 0, 0, 0.4)',
         }}
       >
         تَعَاهَدُوا هَذَا الْقُرْآنَ، فَوَالَّذِي نَفْسِي بِيَدِهِ لَهُوَ أَشَدُّ تَفَصِّيًا مِنَ الْإِبِلِ فِي عُقُلِهَا
@@ -27,13 +29,14 @@ export function IntroHadith() {
       <Text
         component="p"
         ta="center"
-        c="dimmed"
         style={{
           fontFamily: 'Roboto, sans-serif',
           fontStyle: 'italic',
           fontSize: 14,
           maxWidth: 540,
           margin: 0,
+          color: 'rgba(245, 235, 210, 0.92)',
+          textShadow: '0 1px 8px rgba(0, 0, 0, 0.5)',
         }}
       >
         "Keep refreshing your knowledge of the Qur'an, for it is more liable to

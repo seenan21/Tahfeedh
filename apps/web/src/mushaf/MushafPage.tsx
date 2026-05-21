@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Box, Center, Loader, Stack, Text } from '@mantine/core';
-import type { ErrorLocationStatsRow, MushafLine, MushafPageData, MushafWord } from '@tahfeedh/shared';
+import type { ErrorLocationStatsRow, MushafLine, MushafPageData } from '@tahfeedh/shared';
 import { chapter, quranIndex } from '../data/quran-data';
 import { toArabicIndic } from '../lib/numerals';
 import {
@@ -10,6 +10,7 @@ import {
   markerKey,
   type OverlayMarker,
 } from './getOverlayMarkers';
+import { WordSpan } from './WordSpan';
 import classes from './MushafPage.module.css';
 
 /**
@@ -32,12 +33,19 @@ export interface MushafPageProps {
    * the marker plus the originating MouseEvent for popover positioning. */
   onMarkerTap?: (marker: OverlayMarker, event: React.MouseEvent) => void;
   /** Tap on any word (`char_type === 'word'`). Verse-end glyphs route through
-   *  `onVerseNumberTap` instead — see ADR 0035. */
+   *  `onVerseNumberTap` instead — see ADR 0035. Only fires when `onVerseTap`
+   *  is NOT provided (live-test path). */
   onWordTap?: (info: { surah: number; ayah: number; position: number; pageNumber: number }) => void;
   /** Tap on the verse-end glyph (the ۝ + ayah-number marker, `char_type === 'end'`).
-   *  Anchors a verse-scope error in the live test, or opens the drill-up modal
-   *  on the read-only mushaf (ADR 0035). */
+   *  Anchors a verse-scope error in the live test. Only fires when `onVerseTap`
+   *  is NOT provided (ADR 0035 / 0045). */
   onVerseNumberTap?: (info: { surah: number; ayah: number; pageNumber: number }) => void;
+  /** When provided, ANY tap (word or verse-end) routes through this handler
+   *  with verse-level coordinates. Bypasses `onMarkerTap` / `onWordTap` /
+   *  `onVerseNumberTap`. Used by My Mushaf (ADR 0045) so every verse opens
+   *  the unified verse-detail modal. The live-test surface does NOT pass this
+   *  prop — it still needs the word-vs-verse distinction for logging. */
+  onVerseTap?: (info: { surah: number; ayah: number; pageNumber: number }) => void;
   /** Optional content slotted above the 15 lines (header). When undefined the
    * component renders its own bilingual page header. */
   header?: React.ReactNode;
@@ -63,6 +71,7 @@ export function MushafPage({
   onMarkerTap,
   onWordTap,
   onVerseNumberTap,
+  onVerseTap,
   header,
   compact = false,
 }: MushafPageProps) {
@@ -174,6 +183,13 @@ export function MushafPage({
     const charType = target.dataset.charType ?? 'word';
     if (!surah || !ayah || !position) return;
 
+    // ADR 0045 — verse-level tap intent short-circuits word vs verse-end
+    // dispatch. My Mushaf uses this so every tap opens the same modal.
+    if (onVerseTap) {
+      onVerseTap({ surah, ayah, pageNumber });
+      return;
+    }
+
     const isVerseEnd = charType === 'end';
 
     if (onMarkerTap) {
@@ -276,41 +292,3 @@ function LineRow({
   );
 }
 
-function WordSpan({
-  word,
-  marker,
-  verseBand,
-}: {
-  word: MushafWord;
-  marker?: OverlayMarker;
-  verseBand?: OverlayMarker;
-}) {
-  const hasMarker = marker != null;
-  const hasBand = !hasMarker && verseBand != null;
-  const badge =
-    hasMarker && marker!.count > 1 ? (marker!.count > 5 ? '5+' : String(marker!.count)) : null;
-  const className = hasMarker
-    ? `mushaf-word ${classes.wordMarked}`
-    : hasBand
-      ? `mushaf-word ${classes.wordVerseBand}`
-      : 'mushaf-word';
-  const style: React.CSSProperties | undefined = hasMarker
-    ? ({ '--marker-color': marker!.color } as React.CSSProperties)
-    : hasBand
-      ? ({ '--marker-color': verseBand!.color } as React.CSSProperties)
-      : undefined;
-  return (
-    <span
-      className={className}
-      data-mushaf-word=""
-      data-surah={word.surah}
-      data-ayah={word.ayah}
-      data-position={word.position}
-      data-char-type={word.char_type}
-      style={style}
-    >
-      {word.code_v2}
-      {badge ? <sup className={classes.wordMarkerBadge}>{badge}</sup> : null}
-    </span>
-  );
-}

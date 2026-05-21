@@ -7,18 +7,18 @@ import { writeUserTokenRow, deleteUserTokenRow, readUserTokenRow } from '../qf/u
 export const qfAuthRouter = Router();
 export const qfCallbackRouter = Router();
 
-// Scopes confirmed against
-// https://api-docs.quran.foundation/docs/user_related_apis_versioned/scopes/.
-// `openid` and `offline_access` are NOT in QF's scope list — including them
-// produced an `invalid_scope` rejection. Refresh tokens appear to be issued
-// by default for QF user-API flows.
-// `note.create` was added when error-note sync to QF Notes was wired into
-// `apps/server/src/routes/tests.ts` (post-test/error logging path).
+// Scopes confirmed via empirical probe of /oauth2/auth against this
+// client_id. Three QF-documented scopes are NOT granted to this app's
+// client config and trigger `invalid_scope` at /authorize:
+//   - note.create            (blocks teacher-note sync to QF Notes)
+//   - reading_session.create (blocks reading-session writeback)
+//   - profile                (blocks profile read)
+// If/when those are granted to the client, add them here.
+// Refresh tokens are issued by default for QF user-API flows.
 const SCOPES = [
   'bookmark',
   'goal',
   'streak.read',
-  'note.create',
 ];
 
 // Registered with QF as the allowed redirect URI. Lives at a different

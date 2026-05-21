@@ -17,11 +17,10 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import type { ErrorLocationStatsRow, MemorizationStatus, NextNewLesson } from '@tahfeedh/shared';
 import type { OverlayMode } from '../mushaf/MushafPage';
-import type { OverlayMarker } from '../mushaf/getOverlayMarkers';
 import { homeRouteForRole } from '../lib/auth';
 import { supabase } from '../lib/supabase';
 import { CHAPTERS, chapter, quranIndex } from '../data/quran-data';
-import { ErrorDetailModal } from '../mushaf/ErrorDetailModal';
+import { VerseDetailModal } from '../mushaf/VerseDetailModal';
 import { MushafGrid } from '../mushaf/MushafGrid';
 import { MushafPage } from '../mushaf/MushafPage';
 import { PageDetailsPanel } from '../mushaf/PageDetailsPanel';
@@ -88,7 +87,9 @@ function MushafRoute() {
   const [pendingJump, setPendingJump] = useState<number | string>('');
 
   const [overlayMode, setOverlayMode] = useState<OverlayMode>(() => initialOverlayMode());
-  const [tappedMarker, setTappedMarker] = useState<OverlayMarker | null>(null);
+  // ADR 0045 — every tap inside the mushaf opens the same verse-detail modal,
+  // scoped to {surah, ayah}. The old marker-typed state is gone.
+  const [tappedVerse, setTappedVerse] = useState<{ surah: number; ayah: number } | null>(null);
 
   const { data: pagesData, isLoading: pagesLoading } = useQuery({
     queryKey: ['memorization_pages', user.id],
@@ -331,21 +332,8 @@ function MushafRoute() {
                 pageNumber={selectedPage}
                 overlays={errorStats}
                 overlayMode={overlayMode}
-                onMarkerTap={(marker) => setTappedMarker(marker)}
-                onVerseNumberTap={(info) =>
-                  // ADR 0035 — verse-end tap with no marker still opens the
-                  // drill-up modal so the user can see "anything ever logged
-                  // on this ayah?" Synthetic marker with scope='verse'.
-                  setTappedMarker({
-                    scope: 'verse',
-                    surah: info.surah,
-                    ayah: info.ayah,
-                    count: 0,
-                    intensity: 0,
-                    dominantType: 'tajweed',
-                    color: 'transparent',
-                    signatures: [],
-                  })
+                onVerseTap={(info) =>
+                  setTappedVerse({ surah: info.surah, ayah: info.ayah })
                 }
               />
             </Box>
@@ -377,11 +365,11 @@ function MushafRoute() {
         />
       )}
 
-      <ErrorDetailModal
+      <VerseDetailModal
         studentId={user.id}
-        marker={tappedMarker}
+        verse={tappedVerse}
         stats={errorStats ?? []}
-        onClose={() => setTappedMarker(null)}
+        onClose={() => setTappedVerse(null)}
       />
     </Stack>
   );

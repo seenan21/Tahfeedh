@@ -26,8 +26,6 @@ export type ErrorType =
   | 'forgotten_verse'
   | 'hesitation';
 
-export type ErrorSeverity = 'minor' | 'moderate' | 'major';
-
 // Scope partitioning per ADR 0034. Word-scope types must carry word_position;
 // verse-scope types must have word_position = NULL. Enforced by logErrorSchema.
 export type ErrorScope = 'word' | 'verse';

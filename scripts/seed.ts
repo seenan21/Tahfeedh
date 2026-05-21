@@ -5,10 +5,16 @@
  * Demo seed for the Quran Foundation Hackathon submission. Three accounts:
  *
  *   hassan@tahfeedh.app / password123  — Ustaadh Hassan Jameel (teacher)
- *   ahmad@tahfeedh.app  / password123  — Ahmad, junior student
- *                                          (memorized surahs 105–114; many errors)
- *   yusuf@tahfeedh.app  / password123  — Yusuf, senior student
- *                                          (memorized juz 1 + 28 + 29 + 30; mostly clean)
+ *   ahmad@tahfeedh.app  / password123  — Ahmad Saleh, the focal student
+ *                                          (memorized JUZ 30 only, pages 582–604;
+ *                                           ≥5 distinct error markers per page across
+ *                                           every error type, with varied intensities
+ *                                           so the heatmap shows a real diagnostic
+ *                                           picture)
+ *   yusuf@tahfeedh.app  / password123  — Yusuf Bashir, contrast student
+ *                                          (memorized juz 1 + juz 30; sparse errors,
+ *                                           mostly pass — shows what a clean record
+ *                                           looks like in the same UI)
  *
  * Both students enrolled with Hassan in a group called "Halaqa A".
  *
@@ -85,12 +91,12 @@ const TEACHER = {
 };
 const JUNIOR = {
   email: 'ahmad@tahfeedh.app',
-  display: 'Ahmad',
+  display: 'Ahmad Saleh',
   role: 'student' as const,
 };
 const SENIOR = {
   email: 'yusuf@tahfeedh.app',
-  display: 'Yusuf',
+  display: 'Yusuf Bashir',
   role: 'student' as const,
 };
 
@@ -196,37 +202,17 @@ interface CommitOnboardingPayload {
   hifzDirection: 'forward' | 'backward';
 }
 
-function buildJuniorOnboarding(): CommitOnboardingPayload {
-  // Surahs 105–114 → pages 601–604 (all fully memorized; the boundary is
-  // clean — each surah is whole). Direction is backward (frontier moves
-  // from 600 toward page 1) — matches the traditional Juz Amma first path.
+// Build a CommitOnboardingPayload from a list of juzs. Pages + ayahReviewStates
+// are derived from quran-index.json so the boundary handling matches the rest
+// of the app.
+function buildJuzPayload(
+  juzs: number[],
+  newPerDay: number,
+  revisionPerDay: number,
+): CommitOnboardingPayload {
   const memorizedPages = new Set<number>();
   const ayahKeys = new Set<string>();
-  for (let s = 105; s <= 114; s++) {
-    const surahInfo = idx.surahs[String(s)];
-    if (!surahInfo) continue;
-    for (let p = surahInfo.start_page; p <= surahInfo.end_page; p++) memorizedPages.add(p);
-    for (let a = 1; a <= surahInfo.ayah_count; a++) ayahKeys.add(`${s}:${a}`);
-  }
-  const ayahReviewStates: AyahKey[] = Array.from(ayahKeys).map((k) => {
-    const [s, a] = k.split(':');
-    return { surah: Number(s), ayah: Number(a) };
-  });
-  return {
-    memorizedPages: Array.from(memorizedPages).sort((a, b) => a - b),
-    ayahReviewStates,
-    newPerDay: 0.5,
-    revisionPerDay: 3,
-    hasCompletedQuran: false,
-    hifzDirection: 'backward',
-  };
-}
-
-function buildSeniorOnboarding(): CommitOnboardingPayload {
-  // Juz 1 + 28 + 29 + 30 fully memorized.
-  const memorizedPages = new Set<number>();
-  const ayahKeys = new Set<string>();
-  for (const j of [1, 28, 29, 30]) {
+  for (const j of juzs) {
     const juz = idx.juzs[String(j)];
     if (!juz) continue;
     for (let p = juz.pages[0]; p <= juz.pages[1]; p++) memorizedPages.add(p);
@@ -243,11 +229,22 @@ function buildSeniorOnboarding(): CommitOnboardingPayload {
   return {
     memorizedPages: Array.from(memorizedPages).sort((a, b) => a - b),
     ayahReviewStates,
-    newPerDay: 1,
-    revisionPerDay: 5,
+    newPerDay,
+    revisionPerDay,
     hasCompletedQuran: false,
     hifzDirection: 'backward',
   };
+}
+
+// Ahmad: only juz 30 (pages 582–604). 0.5 new pages/day + 3 revision/day.
+// Direction is backward — traditional Juz Amma first path.
+function buildAhmadOnboarding(): CommitOnboardingPayload {
+  return buildJuzPayload([30], 0.5, 3);
+}
+
+// Yusuf: juz 1 + juz 30. 1 new/day + 5 revision/day. Backward.
+function buildYusufOnboarding(): CommitOnboardingPayload {
+  return buildJuzPayload([1, 30], 1, 5);
 }
 
 async function commitOnboarding(studentId: string, payload: CommitOnboardingPayload): Promise<void> {
@@ -320,195 +317,264 @@ function pageToAyahKeys(page: number): AyahKey[] {
   return out;
 }
 
-// Random word position for a marker — most words on a Mushaf line are 3–6 words,
-// so 1–8 is a safe range. Some errors are verse-scope (word_position null).
-function randomWord(scope: 'word' | 'verse'): number | null {
-  if (scope === 'verse') return null;
-  return between(1, 8);
+// -------------- Ahmad test generator: dense juz 30 history --------------
+//
+// Goal (per demo brief): every page in juz 30 (582–604) ends up with at least
+// 5 distinct error signatures on the heatmap, drawn from all 8 error types
+// across word + verse scope, with varied intensities so the overlay shows real
+// diagnostic variety:
+//   • 2 high-intensity "stubborn" word errors per page (hit 3× across tests
+//     — these get the brightest tint + count badge)
+//   • 2 mid-intensity word errors (hit 2×)
+//   • 1–2 verse-scope errors (1× each — whole-verse band)
+//   • 1–2 single-occurrence fresh errors (lowest intensity)
+//
+// Each page gets 3 tests spaced across ~25 days so the activity sparkline +
+// recent-tests list both have content. Ratings drift from `repeat` early to
+// `pass` later (the student improves over time on each page).
+const NOTE_POOL = [
+  'Heavy letter — open the mouth.',
+  'Pause clearly here.',
+  'Watch the meem sākin.',
+  'Read this aloud 3x before next test.',
+  'Ghunnah duration short.',
+  'Slight overcompensation on the madd.',
+  'Skipped this whole verse — review.',
+  'Hesitated 4 seconds — review fluency.',
+  'Mixed up similar verse from later in the surah.',
+  'Watch the qalqalah letter.',
+];
+const TEST_NOTE_POOL = [
+  'Lots of slips on the heavy letters today.',
+  'Improving — keep at it.',
+  'Strong start, lost focus mid-way.',
+  'Review tajweed rules tonight.',
+  'Same trouble spots as last week — repeat-listen the audio.',
+  'Verse-recall is shaky on this page.',
+  'Cleaner than the previous attempt.',
+];
+
+interface TroubleSpot extends ErrorSpec {
+  // How many of the 3 tests should hit this signature. Drives heatmap intensity.
+  hits: number;
 }
 
-// -------------- Junior test generator (Ahmad) --------------
+function makeTroubleSpotsForPage(page: number, ayahs: AyahKey[]): TroubleSpot[] {
+  const wordTypes: ErrorType[] = ['tajweed', 'pronunciation', 'omission', 'addition', 'mismatch'];
+  const verseTypes: ErrorType[] = ['wrong_verse', 'forgotten_verse', 'hesitation'];
+  const used = new Set<string>();
+  const out: TroubleSpot[] = [];
+
+  function makeWord(type: ErrorType, hits: number): TroubleSpot | null {
+    for (let attempt = 0; attempt < 30; attempt++) {
+      const a = ayahs[Math.floor(rng() * ayahs.length)];
+      if (!a) continue;
+      const wp = between(1, 8);
+      const sig = `${a.surah}:${a.ayah}:${wp}:${type}`;
+      if (used.has(sig)) continue;
+      used.add(sig);
+      return {
+        surah: a.surah,
+        ayah: a.ayah,
+        word_position: wp,
+        error_type: type,
+        teacher_note: rng() < 0.4 ? pick(NOTE_POOL) : null,
+        hits,
+      };
+    }
+    return null;
+  }
+  function makeVerse(type: ErrorType, hits: number): TroubleSpot | null {
+    for (let attempt = 0; attempt < 30; attempt++) {
+      const a = ayahs[Math.floor(rng() * ayahs.length)];
+      if (!a) continue;
+      const sig = `${a.surah}:${a.ayah}::${type}`;
+      if (used.has(sig)) continue;
+      used.add(sig);
+      const spot: TroubleSpot = {
+        surah: a.surah,
+        ayah: a.ayah,
+        word_position: null,
+        error_type: type,
+        teacher_note: rng() < 0.5 ? pick(NOTE_POOL) : null,
+        hits,
+      };
+      if (type === 'wrong_verse') {
+        spot.related_surah = a.surah;
+        spot.related_ayah = Math.max(1, a.ayah - 1);
+      }
+      return spot;
+    }
+    return null;
+  }
+
+  // High-intensity word errors (hit in all 3 tests = 3 occurrences each, bright marker).
+  const hiTypes = pickTwo(wordTypes);
+  for (const t of hiTypes) {
+    const s = makeWord(t, 3);
+    if (s) out.push(s);
+  }
+  // Mid-intensity word errors (2 occurrences).
+  const midTypes = pickTwo(wordTypes.filter((t) => !hiTypes.includes(t)));
+  for (const t of midTypes) {
+    const s = makeWord(t, 2);
+    if (s) out.push(s);
+  }
+  // Verse-scope (1 occurrence — whole-verse band).
+  const verseChoice = verseTypes[page % verseTypes.length]!;
+  const v = makeVerse(verseChoice, 1);
+  if (v) out.push(v);
+  // A second verse-scope on every third page so most pages have both bands +
+  // markers, but not every page.
+  if (page % 3 === 0) {
+    const altVerse = verseTypes[(page + 1) % verseTypes.length]!;
+    const v2 = makeVerse(altVerse, 1);
+    if (v2) out.push(v2);
+  }
+  // Single fresh error to push the distinct-signature count comfortably over 5.
+  const freshType = wordTypes[page % wordTypes.length]!;
+  const freshSpot = makeWord(freshType, 1);
+  if (freshSpot) out.push(freshSpot);
+
+  return out;
+}
+
+function pickTwo<T>(arr: T[]): T[] {
+  if (arr.length <= 2) return [...arr];
+  const i = Math.floor(rng() * arr.length);
+  let j = Math.floor(rng() * arr.length);
+  while (j === i) j = Math.floor(rng() * arr.length);
+  return [arr[i]!, arr[j]!];
+}
+
 function buildAhmadTests(studentId: string, teacherId: string): TestSpec[] {
   const tests: TestSpec[] = [];
-  // 12 tests over 14 days. All newly_memorized on pages 601–604.
-  // Ratings progress from 'needs_work' to 'good' over time.
-  const arc: { daysAgo: number; rating: Rating; page: number; errors: number }[] = [
-    { daysAgo: 14, rating: 'repeat',         page: 604, errors: 7 },
-    { daysAgo: 13, rating: 'repeat',         page: 604, errors: 6 },
-    { daysAgo: 12, rating: 'pass',page: 604, errors: 4 },
-    { daysAgo: 11, rating: 'repeat',               page: 603, errors: 8 },
-    { daysAgo: 10, rating: 'repeat',         page: 603, errors: 6 },
-    { daysAgo: 8,  rating: 'pass',page: 603, errors: 4 },
-    { daysAgo: 7,  rating: 'pass',               page: 602, errors: 3 },
-    { daysAgo: 6,  rating: 'pass',page: 602, errors: 5 },
-    { daysAgo: 4,  rating: 'pass',               page: 602, errors: 3 },
-    { daysAgo: 3,  rating: 'pass',               page: 601, errors: 3 },
-    { daysAgo: 2,  rating: 'pass',page: 601, errors: 4 },
-    { daysAgo: 1,  rating: 'pass',               page: 601, errors: 2 },
-  ];
+  // Juz 30 = pages 582–604 = 23 pages.
+  const pages: number[] = [];
+  for (let p = 582; p <= 604; p++) pages.push(p);
 
-  const wordErrTypes: ErrorType[] = ['tajweed', 'pronunciation', 'omission', 'addition', 'mismatch'];
-  const verseErrTypes: ErrorType[] = ['wrong_verse', 'forgotten_verse', 'hesitation'];
-
-  for (const t of arc) {
-    const ayahs = pageToAyahKeys(t.page);
-    const errors: ErrorSpec[] = [];
+  // Spread 3 tests per page across ~25 days. We stride the page-loop so the
+  // activity sparkline isn't all-one-page-then-the-next; days mix across pages.
+  let cursor = 25;
+  for (const page of pages) {
+    const ayahs = pageToAyahKeys(page);
     if (ayahs.length === 0) {
-      // Index gap (e.g. page 595 metadata is degenerate). Skip errors,
-      // still record the test so the history surface has the entry.
+      // Empty page metadata — degenerate, skip entirely (still very rare).
+      continue;
+    }
+    const spots = makeTroubleSpotsForPage(page, ayahs);
+
+    // Assign each spot to a subset of tests by hits count. hits=3 → tests
+    // [0,1,2], hits=2 → tests [0,1], hits=1 → tests [0] for early page work.
+    // We rotate which test gets the hits=1 entries so newer tests still have
+    // entries (otherwise test #3 is empty when only hi-intensity spots cycle).
+    const testErrors: ErrorSpec[][] = [[], [], []];
+    for (const spot of spots) {
+      const { hits, ...err } = spot;
+      if (hits >= 3) {
+        testErrors[0]!.push({ ...err });
+        testErrors[1]!.push({ ...err });
+        testErrors[2]!.push({ ...err });
+      } else if (hits === 2) {
+        // Mid-intensity: hit in test 0 and a coin-flip of (1 or 2).
+        testErrors[0]!.push({ ...err });
+        testErrors[rng() < 0.5 ? 1 : 2]!.push({ ...err });
+      } else {
+        // Fresh: hit in exactly one randomly chosen test.
+        testErrors[Math.floor(rng() * 3)]!.push({ ...err });
+      }
+    }
+
+    // Three tests per page, spaced ~3 days apart, with ratings drifting from
+    // repeat → pass as the student improves.
+    const ratings: Rating[] = ['repeat', 'pass', 'pass'];
+    for (let i = 0; i < 3; i++) {
+      const daysAgo = Math.max(1, cursor - i * 3);
       tests.push({
         studentId,
         teacherId,
-        testType: t.testType ?? 'newly_memorized',
-        pageStart: t.page,
-        pageEnd: t.page,
-        startedAt: isoDaysAgo(t.daysAgo, between(9, 18), between(0, 50)),
-        durationMinutes: between(10, 22),
-        rating: t.rating,
-        notes: null,
-        errors: [],
-      });
-      continue;
-    }
-    for (let i = 0; i < t.errors; i++) {
-      const a = pick(ayahs);
-      if (!a) continue;
-      const isVerseScope = rng() < 0.25;
-      const type: ErrorType = isVerseScope ? pick(verseErrTypes) : pick(wordErrTypes);
-      errors.push({
-        surah: a.surah,
-        ayah: a.ayah,
-        word_position: randomWord(isVerseScope ? 'verse' : 'word'),
-        error_type: type,
-        teacher_note:
-          rng() < 0.35
-            ? pick([
-                'Heavy letter — open the mouth.',
-                'Pause clearly here.',
-                'Watch the meem sākin.',
-                'Read this aloud 3x before next test.',
-                'Ghunnah duration short.',
-              ])
-            : null,
-        ...(type === 'wrong_verse'
-          ? { related_surah: a.surah, related_ayah: Math.max(1, a.ayah - 1) }
-          : {}),
+        testType: 'newly_memorized',
+        pageStart: page,
+        pageEnd: page,
+        startedAt: isoDaysAgo(daysAgo, between(9, 17), between(0, 50)),
+        durationMinutes: between(11, 22),
+        rating: ratings[i]!,
+        notes: rng() < 0.4 ? pick(TEST_NOTE_POOL) : null,
+        errors: testErrors[i]!,
       });
     }
-    tests.push({
-      studentId,
-      teacherId,
-      testType: 'newly_memorized',
-      pageStart: t.page,
-      pageEnd: t.page,
-      startedAt: isoDaysAgo(t.daysAgo, between(9, 18), between(0, 50)),
-      durationMinutes: between(10, 22),
-      rating: t.rating,
-      notes:
-        rng() < 0.4
-          ? pick([
-              'Lots of slips on the heavy letters today.',
-              'Improving — keep at it.',
-              'Strong start, lost focus mid-way.',
-              'Review tajweed rules tonight.',
-              null as unknown as string,
-            ]) ?? null
-          : null,
-      errors,
-    });
+
+    // Advance the cursor by 1 day per page so adjacent pages get adjacent
+    // first-test dates; this gives the activity sparkline daily density.
+    cursor = Math.max(1, cursor - 1);
   }
   return tests;
 }
 
-// -------------- Senior test generator (Yusuf) --------------
+// -------------- Yusuf test generator: clean record, contrast to Ahmad --------------
+//
+// Yusuf has juz 1 (pages 1–21) + juz 30 (pages 582–604) memorized. He's the
+// "clean record" demo — sparse errors, mostly `pass` ratings. 12 revision tests
+// spread over 22 days across a representative sample of his pages.
 function buildYusufTests(studentId: string, teacherId: string): TestSpec[] {
   const tests: TestSpec[] = [];
-  // 10 tests over 21 days. Mix of revision (across his juz set) + 2 newly_memorized
-  // touching his frontier (page 541 — start of "next" before juz 28). Most ratings
-  // strong_pass / good / excellent; sparse errors.
-  const reviewPages = [
-    // From juz 30 (last)
-    604, 603, 602, 601, 600, 598, 595, 590,
-    // From juz 29
-    580, 575, 570, 565,
-    // From juz 28
-    560, 555, 545,
-    // From juz 1
-    5, 10, 15, 20,
+  const wordErrTypes: ErrorType[] = ['tajweed', 'pronunciation', 'addition'];
+  const yusufNotes = [
+    'Sharp recall. Good ghunnah.',
+    'Solid revision — flagged 1 letter.',
+    'Excellent flow start to finish.',
+    'Clean read.',
   ];
-  const arc: { daysAgo: number; rating: Rating; testType: 'newly_memorized' | 'revision'; page: number; errors: number }[] = [
-    { daysAgo: 21, rating: 'pass',       testType: 'revision',         page: 604, errors: 2 },
-    { daysAgo: 19, rating: 'pass',testType: 'revision',         page: 580, errors: 0 },
-    { daysAgo: 16, rating: 'pass',       testType: 'revision',         page: 600, errors: 1 },
-    { daysAgo: 13, rating: 'pass',  testType: 'revision',         page: 20,  errors: 0 },
-    { daysAgo: 11, rating: 'pass',testType: 'revision',         page: 560, errors: 1 },
-    { daysAgo: 9,  rating: 'pass',testType: 'revision', page: 593, errors: 2 },
-    { daysAgo: 7,  rating: 'pass',       testType: 'revision',         page: 555, errors: 1 },
-    { daysAgo: 5,  rating: 'pass',testType: 'revision',         page: 575, errors: 0 },
-    { daysAgo: 3,  rating: 'pass',  testType: 'revision',         page: 10,  errors: 0 },
-    { daysAgo: 1,  rating: 'pass',       testType: 'revision',         page: 565, errors: 1 },
+  const yusufErrorNotes = [
+    'Slight overcompensation on the madd.',
+    'Brief slip — clean otherwise.',
+    'Watch the qalqalah letter.',
   ];
 
-  const wordErrTypes: ErrorType[] = ['tajweed', 'pronunciation', 'addition'];
+  const arc: { daysAgo: number; page: number; errors: number; rating: Rating }[] = [
+    { daysAgo: 22, page: 604, errors: 1, rating: 'pass' },
+    { daysAgo: 20, page: 600, errors: 0, rating: 'pass' },
+    { daysAgo: 18, page: 595, errors: 1, rating: 'pass' },
+    { daysAgo: 16, page: 590, errors: 0, rating: 'pass' },
+    { daysAgo: 14, page: 585, errors: 2, rating: 'pass' },
+    { daysAgo: 12, page: 1, errors: 0, rating: 'pass' },
+    { daysAgo: 10, page: 5, errors: 1, rating: 'pass' },
+    { daysAgo: 8, page: 10, errors: 0, rating: 'pass' },
+    { daysAgo: 6, page: 15, errors: 1, rating: 'pass' },
+    { daysAgo: 4, page: 20, errors: 0, rating: 'pass' },
+    { daysAgo: 2, page: 598, errors: 1, rating: 'pass' },
+    { daysAgo: 1, page: 602, errors: 0, rating: 'pass' },
+  ];
 
   for (const t of arc) {
     const ayahs = pageToAyahKeys(t.page);
     const errors: ErrorSpec[] = [];
-    if (ayahs.length === 0) {
-      // Index gap (e.g. page 595 metadata is degenerate). Skip errors,
-      // still record the test so the history surface has the entry.
-      tests.push({
-        studentId,
-        teacherId,
-        testType: t.testType ?? 'newly_memorized',
-        pageStart: t.page,
-        pageEnd: t.page,
-        startedAt: isoDaysAgo(t.daysAgo, between(9, 18), between(0, 50)),
-        durationMinutes: between(10, 22),
-        rating: t.rating,
-        notes: null,
-        errors: [],
-      });
-      continue;
-    }
-    for (let i = 0; i < t.errors; i++) {
-      const a = pick(ayahs);
-      if (!a) continue;
-      errors.push({
-        surah: a.surah,
-        ayah: a.ayah,
-        word_position: between(1, 6),
-        error_type: pick(wordErrTypes),
-        teacher_note: rng() < 0.5 ? pick([
-          'Slight overcompensation on the madd.',
-          'Brief slip — clean otherwise.',
-          'Watch the qalqalah letter.',
-        ]) : null,
-      });
+    if (ayahs.length > 0) {
+      for (let i = 0; i < t.errors; i++) {
+        const a = pick(ayahs);
+        if (!a) continue;
+        errors.push({
+          surah: a.surah,
+          ayah: a.ayah,
+          word_position: between(1, 6),
+          error_type: pick(wordErrTypes),
+          teacher_note: rng() < 0.5 ? pick(yusufErrorNotes) : null,
+        });
+      }
     }
     tests.push({
       studentId,
       teacherId,
-      testType: t.testType,
+      testType: 'revision',
       pageStart: t.page,
       pageEnd: t.page,
       startedAt: isoDaysAgo(t.daysAgo, between(9, 19), between(0, 50)),
-      durationMinutes: between(8, 18),
+      durationMinutes: between(8, 16),
       rating: t.rating,
-      notes:
-        rng() < 0.3
-          ? pick([
-              'Sharp recall. Good ghunnah.',
-              'Solid revision — flagged 1 letter.',
-              'Excellent flow start to finish.',
-            ])
-          : null,
+      notes: rng() < 0.3 ? pick(yusufNotes) : null,
       errors,
     });
   }
-
-  // Tip: 'reviewPages' is just the inventory we drew from; not all are used per test
-  void reviewPages;
   return tests;
 }
 
@@ -642,18 +708,17 @@ async function seedTests(label: string, tests: TestSpec[]): Promise<void> {
 
 // -------------------------------------------------------------------------
 // 6. Stage-machine seasoning — set recent_stage + ready_at on a sample of
-// ayahs so the revision queue surfaces realistic Queue 2 entries.
+// ayahs so the revision queue surfaces realistic recent-revision entries.
+// Per ADR 0049, only stages 1 and 2 are valid (CHECK constraint enforces it);
+// stage 3 was collapsed into graduation.
 // -------------------------------------------------------------------------
 async function seedStageMachine(studentId: string, pages: number[]): Promise<void> {
-  // For each page, set one ayah to each of (stage 1, ready now), (stage 2, ready in 2d),
-  // (stage 3, ready in 6d). Stops once we've placed 3 stage rows per page or run out.
   for (const page of pages) {
     const ayahs = pageToAyahKeys(page);
     if (ayahs.length === 0) continue;
-    const stages: Array<{ stage: number; readyAtDays: number }> = [
+    const stages: Array<{ stage: 1 | 2; readyAtDays: number }> = [
       { stage: 1, readyAtDays: 0 },
       { stage: 2, readyAtDays: 2 },
-      { stage: 3, readyAtDays: 6 },
     ];
     for (let i = 0; i < Math.min(stages.length, ayahs.length); i++) {
       const s = stages[i]!;
@@ -674,18 +739,6 @@ async function seedStageMachine(studentId: string, pages: number[]): Promise<voi
   }
 }
 
-// Promote a few pages to mastered for the senior student so the progress
-// dashboard shows variety.
-async function promoteSomePagesToMastered(studentId: string, pages: number[]): Promise<void> {
-  if (pages.length === 0) return;
-  const { error } = await supabase
-    .from('memorization_page')
-    .update({ status: 'mastered', mastered_at: new Date().toISOString() })
-    .eq('student_id', studentId)
-    .in('page_number', pages);
-  if (error) throw error;
-}
-
 // -------------------------------------------------------------------------
 // main
 // -------------------------------------------------------------------------
@@ -703,10 +756,10 @@ async function main(): Promise<void> {
   console.log(`  • senior   ${SENIOR.email}   ${seniorId}`);
 
   console.log('3. Onboard students');
-  await commitOnboarding(juniorId, buildJuniorOnboarding());
-  console.log(`  • ${JUNIOR.email} — surahs 105–114 (pages 601–604), 0.5 new + 3 revision/day, backward`);
-  await commitOnboarding(seniorId, buildSeniorOnboarding());
-  console.log(`  • ${SENIOR.email} — juz 1 + 28–30 (~84 pages), 1 new + 5 revision/day, backward`);
+  await commitOnboarding(juniorId, buildAhmadOnboarding());
+  console.log(`  • ${JUNIOR.email} — juz 30 only (pages 582–604), 0.5 new + 3 revision/day, backward`);
+  await commitOnboarding(seniorId, buildYusufOnboarding());
+  console.log(`  • ${SENIOR.email} — juz 1 + juz 30 (~44 pages), 1 new + 5 revision/day, backward`);
 
   console.log('4. Create group + enroll');
   const groupId = await createGroup(teacherId, GROUP_NAME);
@@ -718,18 +771,15 @@ async function main(): Promise<void> {
   await seedTests('Ahmad ', buildAhmadTests(juniorId, teacherId));
   await seedTests('Yusuf ', buildYusufTests(seniorId, teacherId));
 
-  console.log('6. Season the revision queue');
-  await seedStageMachine(juniorId, [601, 602, 603, 604]);
-  await seedStageMachine(seniorId, [604, 603, 602, 580, 575, 560, 20, 15]);
-
-  console.log('7. Promote a few of Yusuf’s pages to mastered');
-  await promoteSomePagesToMastered(seniorId, [604, 603, 1, 2, 3, 4, 5]);
+  console.log('6. Season the revision queue (stages 1 + 2 only per ADR 0049)');
+  await seedStageMachine(juniorId, [604, 603, 602, 601, 600, 595, 590, 585]);
+  await seedStageMachine(seniorId, [604, 603, 1, 5, 10, 20]);
 
   console.log('\n=== Done ===');
   console.log('\nDemo credentials (password: ' + PASSWORD + ')');
-  console.log(`  Teacher  ${TEACHER.email}`);
-  console.log(`  Junior   ${JUNIOR.email}`);
-  console.log(`  Senior   ${SENIOR.email}`);
+  console.log(`  Teacher  ${TEACHER.email}  — ${TEACHER.display}`);
+  console.log(`  Ahmad    ${JUNIOR.email}   — ${JUNIOR.display} (juz 30 only, heavy error history)`);
+  console.log(`  Yusuf    ${SENIOR.email}   — ${SENIOR.display} (juz 1 + 30, sparse errors)`);
   console.log('');
 }
 

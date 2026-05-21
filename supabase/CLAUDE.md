@@ -6,7 +6,7 @@ Supabase project assets. Currently just migrations — `supabase/config.toml` an
 
 | Path | What | When to read |
 |---|---|---|
-| `migrations/` | Numbered SQL migrations 0001–0015 | Adding a schema change, debugging RLS, looking up a table or function definition |
+| `migrations/` | Numbered SQL migrations 0001–0029 (two files share number `0027` — see migrations CLAUDE.md note) | Adding a schema change, debugging RLS, looking up a table or function definition |
 
 ## Operational
 

@@ -53,7 +53,7 @@ export function ErrorLogPane({ testType, guestTesterName, errors, rangeLabel, on
       </Stack>
 
       <div style={{ flex: 1, minHeight: 0, marginBottom: 'var(--mantine-spacing-md)' }}>
-        <LoggedErrorsList errors={errors} showTrashAffordance />
+        <LoggedErrorsList errors={errors} />
       </div>
 
       <Stack gap="xs">

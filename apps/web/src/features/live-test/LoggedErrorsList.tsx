@@ -1,5 +1,5 @@
-import { ActionIcon, Badge, Group, Paper, ScrollArea, Stack, Text, Tooltip } from '@mantine/core';
-import { MessageSquare, Trash2 } from 'lucide-react';
+import { Badge, Group, Paper, ScrollArea, Stack, Text } from '@mantine/core';
+import { MessageSquare } from 'lucide-react';
 import { scopeOfErrorType } from '@tahfeedh/shared';
 import { chapter } from '../../data/quran-data';
 import { ERROR_TYPE_COLOR } from '../../mushaf/getOverlayMarkers';
@@ -7,14 +7,11 @@ import type { LoggedError } from './useTestSession';
 
 interface Props {
   errors: LoggedError[];
-  /** Live-flow shows a disabled trash icon as a future-affordance hint. Recap hides it. */
-  showTrashAffordance?: boolean;
   emptyText?: string;
 }
 
 export function LoggedErrorsList({
   errors,
-  showTrashAffordance = false,
   emptyText = 'Tap any word on the mushaf to log an error.',
 }: Props) {
   return (
@@ -42,7 +39,7 @@ export function LoggedErrorsList({
                   background: 'rgba(255,255,255,0.85)',
                 }}
               >
-                <Group justify="space-between" gap={4} wrap="nowrap" align="flex-start">
+                <Group gap={4} wrap="nowrap" align="flex-start">
                   <Stack gap={4} style={{ minWidth: 0, flex: 1 }}>
                     <Group gap={6} wrap="wrap">
                       <Badge
@@ -111,13 +108,6 @@ export function LoggedErrorsList({
                       </Group>
                     )}
                   </Stack>
-                  {showTrashAffordance && (
-                    <Tooltip label="Delete error (not implemented)" disabled>
-                      <ActionIcon variant="subtle" size="sm" disabled>
-                        <Trash2 size={12} />
-                      </ActionIcon>
-                    </Tooltip>
-                  )}
                 </Group>
               </Paper>
             );

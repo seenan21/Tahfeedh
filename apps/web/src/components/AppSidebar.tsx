@@ -77,7 +77,7 @@ export function AppSidebar({ role }: { role: UserRole }) {
         </div>
         <div className={classes.footer}>
           <span className={classes.footerCollapsed}>v0.1</span>
-          <span className={classes.footerExpanded}>v0.1 · hackathon build</span>
+          <span className={classes.footerExpanded}>v0.1</span>
         </div>
       </nav>
     </div>

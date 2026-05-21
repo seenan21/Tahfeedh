@@ -103,9 +103,6 @@ function StudentTestsLanding() {
             <Title order={2} c="parchment.0">
               Witnessed tests
             </Title>
-            <Badge variant="filled" color="sage.7">
-              Phase D
-            </Badge>
           </Group>
           <Text c="parchment.0" size="sm" style={{ opacity: 0.75 }}>
             الاختبارات · Witnessed tests are how a page moves from in-progress to memorized.

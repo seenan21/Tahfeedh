@@ -10,10 +10,10 @@ interface JuzProgressBarProps {
 
 interface MemorizedPageRow {
   page_number: number;
-  status: 'in_progress' | 'memorized' | 'mastered';
+  status: 'in_progress' | 'memorized';
 }
 
-type JuzStatus = 'mastered' | 'memorized' | 'in_progress' | 'untouched';
+type JuzStatus = 'memorized' | 'in_progress' | 'untouched';
 
 async function fetchPages(studentId: string): Promise<MemorizedPageRow[]> {
   const { data, error } = await supabase
@@ -39,38 +39,31 @@ function deriveJuzStatuses(rows: MemorizedPageRow[]): Map<number, JuzInfo> {
     }
     const [start, end] = info.pages;
     const juzLen = end - start + 1;
-    let mastered = 0;
     let memorized = 0;
     let inProgress = 0;
     for (const r of rows) {
       if (r.page_number < start || r.page_number > end) continue;
-      if (r.status === 'mastered') mastered += 1;
-      else if (r.status === 'memorized') memorized += 1;
+      if (r.status === 'memorized') memorized += 1;
       else if (r.status === 'in_progress') inProgress += 1;
     }
-    const filled = mastered + memorized + inProgress;
+    const filled = memorized + inProgress;
     let status: JuzStatus;
-    if (mastered >= juzLen) status = 'mastered';
-    else if (mastered + memorized >= juzLen) status = 'memorized';
+    if (memorized >= juzLen) status = 'memorized';
     else if (filled > 0) status = 'in_progress';
     else status = 'untouched';
-    // Pages-left counts pages not yet at memorized/mastered. in_progress pages
-    // still count as remaining work for the juz.
-    const pagesLeft = Math.max(0, juzLen - (mastered + memorized));
+    const pagesLeft = Math.max(0, juzLen - memorized);
     result.set(j, { status, pagesLeft });
   }
   return result;
 }
 
 const STATUS_COLORS: Record<JuzStatus, { bg: string; fg: string }> = {
-  mastered:    { bg: 'var(--mantine-color-sage-7)',   fg: 'var(--mantine-color-parchment-0)' },
-  memorized:   { bg: 'var(--mantine-color-sage-4)',   fg: 'var(--mantine-color-mihrab-9)' },
+  memorized:   { bg: 'var(--mantine-color-sage-7)',   fg: 'var(--mantine-color-parchment-0)' },
   in_progress: { bg: 'var(--mantine-color-honey-4)',  fg: 'var(--mantine-color-mihrab-9)' },
   untouched:   { bg: 'rgba(255,255,255,0.65)',        fg: 'rgba(21,53,30,0.45)' },
 };
 
 const STATUS_LABEL: Record<JuzStatus, string> = {
-  mastered:    'mastered',
   memorized:   'memorized',
   in_progress: 'in progress',
   untouched:   'untouched',
@@ -90,11 +83,11 @@ export function JuzProgressBar({ studentId }: JuzProgressBarProps) {
   const rows = data ?? [];
   const statuses = deriveJuzStatuses(rows);
   const counts: Record<JuzStatus, number> = {
-    mastered: 0, memorized: 0, in_progress: 0, untouched: 0,
+    memorized: 0, in_progress: 0, untouched: 0,
   };
   for (const v of statuses.values()) counts[v.status] += 1;
 
-  const completed = counts.mastered + counts.memorized;
+  const completed = counts.memorized;
 
   return (
     <Stack gap={10}>
@@ -190,7 +183,6 @@ export function JuzProgressBar({ studentId }: JuzProgressBarProps) {
 
       <Group gap="md" mt={4}>
         <LegendDot color={STATUS_COLORS.memorized.bg} label={`Memorized ${counts.memorized}`} />
-        <LegendDot color={STATUS_COLORS.mastered.bg} label={`Mastered ${counts.mastered}`} />
         <LegendDot color={STATUS_COLORS.in_progress.bg} label={`In progress ${counts.in_progress}`} />
         <LegendDot color={STATUS_COLORS.untouched.bg} label={`Untouched ${counts.untouched}`} />
       </Group>

@@ -348,33 +348,18 @@ function compactRangeLabel(ranges: TestRange[]): string {
 
 function ratingLabel(r: TestRating): string {
   switch (r) {
-    case 'excellent':
-      return 'Excellent';
-    case 'good':
-      return 'Good';
-    case 'needs_work':
-      return 'Needs work';
-    case 'strong_pass':
-      return 'Strong pass';
-    case 'pass_needs_practice':
-      return 'Pass · practice';
-    case 'fail':
-      return 'Fail';
+    case 'pass':
+      return 'Pass';
+    case 'repeat':
+      return 'Repeat';
   }
 }
 
 function ratingColor(r: TestRating): string {
   switch (r) {
-    case 'excellent':
-    case 'strong_pass':
+    case 'pass':
       return 'sage.7';
-    case 'good':
-      return 'sage.5';
-    case 'pass_needs_practice':
-      return 'honey.5';
-    case 'needs_work':
-      return 'honey.7';
-    case 'fail':
+    case 'repeat':
       return 'brick.6';
   }
 }

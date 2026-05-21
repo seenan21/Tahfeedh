@@ -375,8 +375,8 @@ Two questions, with traditional madrasa defaults preselected:
 - Custom...
 
 **Revision per day:**
-- 3 pages
-- 5 pages ← default
+- 3 pages ← default (ADR 0051)
+- 5 pages
 - 10 pages
 - Custom...
 
@@ -431,77 +431,74 @@ Settings → "Edit Memorization" reopens the Step 2 picker in the user's last-us
 
 A **session** is the day's plan for a student:
 - N pages of new material to memorize (default: 1)
-- M pages of revision (default: 5)
+- M pages of revision (default: 3, ADR 0051)
 
-The plan is computed once per session and **persisted** in `daily_session` (ADR 0020). The first call to the `today_session` RPC on a new calendar day runs the queues, writes the row, and returns it; subsequent reads return the same row. Reloading Today never reshuffles the day's pages — anti-gaming. A new session loads automatically on the next calendar day; an explicit "Load next session" CTA can also insert an additional `session_index` for the same date (DESIGN.md §7.7).
+The plan is computed once per `session_index` and **persisted** in `daily_session` (ADR 0020). The first call to the `today_session` RPC on a new calendar day runs the queues, writes the row, and returns it; subsequent reads of the same `session_index` return the same row (immutable within an index). Sessions are not capped per day — clicking "Load next session" re-runs the algorithm against current state and inserts a fresh row at `session_index + 1` for the same date.
 
-Tests are still independent events; they may or may not contribute to completing today's session. A session is **complete** when every page in `new_lesson_pages ∪ revision_pages` has been attempted in a closed test today (pass or fail — both count as "attempted"). The completion flag (`all_attempted`) is **derived** at read time from the test/test_range tables; only the plan itself is stored.
+Tests are still independent events; they may or may not contribute to completing today's session. A session is **complete** when every page in `new_lesson_pages ∪ revision_pages` has been attempted in a closed test today (pass or repeat — both count as "attempted"). The completion flag (`all_attempted`) is **derived** at read time from the test/test_range tables; only the plan itself is stored.
 
 **Critical:** Tests do not "belong to" sessions. A test that covers a page outside today's required set is still valid — its data updates state for future sessions.
 
-### 7.2 The three queues
+### 7.2 The queues — exposed buckets vs internal model
 
-Internally, the algorithm maintains three logical queues:
+The student sees **two buckets** on Today: New Lesson + Revision. Internally the revision bucket is filled from a **unified priority pool** across three sources (ADR 0050) — the bucket is grouped under "Recent" / "Older" sub-headers for legibility, with no rigid sub-caps.
 
 **Queue 1: New Lesson (deterministic)**
-- Walk the student's memorization frontier (highest contiguous block of memorized pages)
+- Walk the student's memorization frontier (direction-aware per `hifz_direction`)
 - Suggest the next un-memorized page (or continuation of current in-progress page)
-- Output: 1 entry by default
+- Output: 1 entry by default (or 0 if `has_completed_quran = true`)
 
-**Queue 2: Recent Revision (state machine)**
+**Recent Revision (2-stage machine, ADR 0049)**
 
-Pages enter at **stage 1** when they are first marked memorized (via `strong_pass` on a newly_memorized test). They cycle through stages until they "graduate" to old revision.
+Pages enter at **stage 1** when first marked memorized (any pass on a `newly_memorized` test). They progress through one more stage before graduating:
 
-After each test that covers a recent-revision page:
-
-| Rating | Stage change | ready_at |
+| Situation | New stage | New ready_at |
 |---|---|---|
-| `strong_pass` or `excellent` | stage += 1 | now + interval[new_stage] |
-| `good` | stays | now + interval[stage] |
-| `needs_work` | max(1, stage - 1) | now + 1 session |
-| `fail` | reset to 1; may downgrade page status | now |
+| `newly_memorized + pass` | 1 | now + 1 day |
+| Stage 1 + `pass` (revision) | 2 | now + 3 days |
+| Stage 2 + `pass` (revision) | NULL (graduated) | NULL |
+| Any `repeat` at any stage | 1 | now + 1 day |
+| Graduated + `pass` | unchanged | unchanged |
 
-**Intervals (in sessions):**
-- Stage 1 → 2: 1 session
-- Stage 2 → 3: 3 sessions
-- Stage 3 → graduate: 7 sessions
+1 session = 1 calendar day. Multiple `session_index` rows in a day still count as 1 session for `ready_at` math.
 
-When a page passes at stage 3 → **graduates** to old revision pool. `recent_stage` becomes NULL, `graduated_at` is set.
+**Old Revision (graduated pages, weighted priority)**
 
-**Queue 3: Old Revision (weighted priority)**
+Pages where every ayah has `graduated_at IS NOT NULL`. Scored each time the session plan is computed.
 
-Pages that have graduated. Scored each time the session plan is computed.
+**Unified priority scoring (ADR 0050)**
 
+Both recent and old pages compete on a single score; top N across the union fills the revision bucket.
+
+**Recent score:**
 ```
-priority_score(page) =
-    (sessions_since_last_review × w_recency)
-  + (error_rate_last_3_tests × w_errors)
-  - (mastery_factor × w_mastery)
-  + juz_cohesion_bonus
-  + overdue_factor × w_overdue
-  + mutashabihat_penalty
+score = 60 − (stage − 1) × 25 + sessions_overdue × 15
+```
+- Stage 1 fresh: 60
+- Stage 2 fresh (ready today): 35
+- Stage 2 + 1 day overdue: 50
+- Stage 2 + 2 days overdue: 65 (outranks fresh stage-1)
+
+**Old score:**
+```
+score =
+    days_since_review × 1.0
+  + (active_error_count / 3.0) × 20.0
+  − min(consecutive_clean_tests, 5) / 5 × 3.0
+  + juz_cohesion_bonus            (1.0 if any ±2-page neighbor reviewed in last 3 days)
+  + max(0, days_since_review − 60) × 10.0
+  + mutashabihat_penalty          (deferred to M9)
 ```
 
-Where:
-- `w_recency = 1.0`
-- `w_errors = 20.0`
-- `w_mastery = 3.0`
-- `mastery_factor = min(consecutive_clean_tests, 5) / 5`
-- `juz_cohesion_bonus = 1.0` if any adjacent (±2) page was reviewed in last 3 sessions, else 0
-- `overdue_factor = max(0, sessions_since_last_review - max_review_interval_sessions)` where `max_review_interval_sessions` defaults to 60
-- `w_overdue = 10.0`
-- `mutashabihat_penalty = 0.5 × count_of_mutashabihat_ayahs_on_page` (only if M9 ships)
+Typical old scores sit in 10–40, climb past 100 when truly overdue, and reach 200+ for chronically-neglected pages — a forgotten page can outrank a fresh stage-1 page, which is the algorithm's promise that "the queue ends" (§3.3).
 
-Weights are starting guesses based on traditional hifz pedagogy. Real-world tuning is part of the post-MVP roadmap. Be ready to acknowledge this if asked during demo.
+Never-tested-yet pages (memorized via onboarding, never tested since) are folded into the old-revision pool with the formula's natural defaults; the onboarding 30-day backdate puts them at score ~30 the first day, climbing past 60 days unseen.
+
+Weights are starting guesses. Real-world tuning is part of the post-MVP roadmap.
 
 ### 7.3 Filling the revision bucket
 
-`pages_per_session_revision` is split across recent + old, recent-first:
-
-1. Pull all pages from Recent Revision where `ready_at <= now()` for this student
-2. Sort by stage ascending (lower stages need it more), then by ready_at ascending
-3. If recent count < bucket capacity, fill remainder from Old Revision top-N by priority_score
-4. Total never exceeds `pages_per_session_revision`
+`pages_per_session_revision` (default 3) is filled by a single ORDER BY across the unified pool — no rigid sub-caps. The UI groups consecutive same-kind rows under "Recent" / "Older" sub-headers without resorting; if every row is one kind, headers don't render.
 
 ### 7.4 Session lifecycle
 
@@ -528,7 +525,7 @@ Today's streak is computed by `daily_streak()` function in Postgres, which walks
 - **Each item has a reason.** "You haven't reviewed page 5 in 11 sessions." "Recently memorized — keep fresh." "Recurring errors detected." Builds trust in the algorithm.
 - **Completion celebration.** When the session completes, show an explicit closure moment. Then optionally offer "Continue with tomorrow's session early?" — same caps.
 - **No new advancement without revision.** Session completion requires both buckets (unless `has_completed_quran = true`).
-- **Settings reach into the algorithm.** Students set bucket sizes; algorithm respects them. Defaults: 1 new + 5 revision.
+- **Settings reach into the algorithm.** Students set bucket sizes; algorithm respects them. Defaults: 1 new + 3 revision (ADR 0051).
 
 ### 7.7 "Continue tomorrow's session early"
 
@@ -550,16 +547,14 @@ Only two types. The recent/old distinction is a property of the page (via `ayah_
 
 ### 8.2 Test ratings
 
+Collapsed to two values (ADR 0048). Teacher's subjective call.
+
 | Rating | Applies to | Effect |
 |---|---|---|
-| `strong_pass` | newly_memorized | Page graduates to `memorized`; enters recent revision queue at stage 1 |
-| `pass_needs_practice` | newly_memorized | Page stays `in_progress`; algorithm prioritizes |
-| `excellent` | revision | Advances recent stage (if applicable); increments mastery counter |
-| `good` | revision | Stays at current state; mastery counter increments if no errors |
-| `needs_work` | revision | Resets mastery counter; bumps priority; recent stage may regress |
-| `fail` | both | Resets mastery counter; page status may downgrade |
+| `pass` | both | newly_memorized: promotes page to `memorized` + enters Queue at stage 1. revision: advances stage 1 → 2 → graduated; consec_clean increments if no errors |
+| `repeat` | both | newly_memorized: page stays `in_progress`. revision: resets stage to 1 (even from graduated), ready_at = +1d. consec_clean resets on errors |
 
-One column on `test`, six possible values. UI shows the relevant 3 options based on `test_type`.
+One column on `test`, two possible values. UI shows the same two options for both test types.
 
 ### 8.3 Range restrictions
 
@@ -573,7 +568,7 @@ One column on `test`, six possible values. UI shows the relevant 3 options based
 **For `test_type = 'revision'`:**
 - Exactly one range
 - Range must be contiguous OR a whole surah / juz / hizb / rub
-- All pages in range must have `memorization_page.status IN ('memorized', 'mastered')`
+- All pages in range must have `memorization_page.status = 'memorized'`
 - Range cannot include `in_progress` pages
 
 ### 8.4 Range representation
@@ -1001,7 +996,7 @@ CREATE TABLE student_settings (
   user_id UUID PRIMARY KEY REFERENCES app_user(id) ON DELETE CASCADE,
   pages_per_session_new NUMERIC(3,1) NOT NULL DEFAULT 1.0
     CHECK (pages_per_session_new >= 0),
-  pages_per_session_revision INT NOT NULL DEFAULT 5
+  pages_per_session_revision INT NOT NULL DEFAULT 3
     CHECK (pages_per_session_revision >= 0),
   has_completed_quran BOOLEAN NOT NULL DEFAULT false,
   max_review_interval_sessions INT NOT NULL DEFAULT 60,
@@ -1022,11 +1017,11 @@ Helper functions in §12.3 do not change; the algorithm reads `pages_per_session
 | Enum | Values |
 |---|---|
 | `user_role` | `student`, `teacher` |
-| `memorization_status` | `in_progress`, `memorized`, `mastered` |
+| `memorization_status` | `in_progress`, `memorized` (ADR 0047 — `mastered` enum value remains in pg_type but is unused) |
 | `test_type` | `newly_memorized`, `revision` |
 | `test_status` | `in_progress`, `completed`, `abandoned` |
 | `test_mode` | `enrolled_teacher`, `guest_teacher` |
-| `test_rating` | `strong_pass`, `pass_needs_practice`, `excellent`, `good`, `needs_work`, `fail` |
+| `test_rating` | `pass`, `repeat` (ADR 0048 — six legacy values remain in pg_type but are unused) |
 | `error_type` | `tajweed`, `pronunciation`, `omission`, `addition`, `mismatch`, `wrong_verse`, `forgotten_verse`, `hesitation` |
 | `error_severity` | `minor`, `moderate`, `major` |
 | `enrollment_status` | `active`, `paused`, `completed` |

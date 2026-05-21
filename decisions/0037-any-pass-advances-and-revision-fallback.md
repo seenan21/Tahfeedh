@@ -1,7 +1,7 @@
 # 0037 — Any Pass Advances + Revision Queue Fallback
 
 **Date:** 2026-05-20
-**Status:** Implemented
+**Status:** Superseded by 0048 (rating collapse absorbed "any pass advances") and 0050 (Q2b tier deleted; never-tested case folded into unified scoring)
 **Milestone:** M5
 
 ## Context

@@ -64,14 +64,9 @@ export type OnboardingFinishInput = z.infer<typeof onboardingFinishSchema>;
 
 export const testTypeSchema = z.enum(['newly_memorized', 'revision']);
 export const testModeSchema = z.enum(['enrolled_teacher', 'guest_teacher']);
-export const testRatingSchema = z.enum([
-  'strong_pass',
-  'pass_needs_practice',
-  'excellent',
-  'good',
-  'needs_work',
-  'fail',
-]);
+// ADR 0046 — collapsed to pass/repeat. Legacy DB enum values still exist
+// (Postgres can't DROP VALUE) but no new code writes them.
+export const testRatingSchema = z.enum(['pass', 'repeat']);
 
 export const errorTypeSchema = z.enum([
   'tajweed',

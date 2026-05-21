@@ -86,6 +86,9 @@ export function Step3Sessions({ state, dispatch, onBack, onFinish }: Step3Props)
               <Radio value="10" label="10 pages" />
               <Radio value="custom" label="Custom…" />
             </Stack>
+            <Text size="xs" c="dimmed">
+              3 pages is the recommended starting point. Bump it up once revision feels easy.
+            </Text>
           </Radio.Group>
           {revisionGroup === 'custom' && (
             <NumberInput

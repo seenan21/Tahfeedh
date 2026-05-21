@@ -49,7 +49,7 @@ export const sage: MantineColorsTuple = [
   '#7ea087', // .4 — memorized
   '#658a6e',
   '#507459',
-  '#3d6b4c', // .7 — mastered (pair with star icon)
+  '#3d6b4c', // .7 — memorized (deep)
   '#2f5a3d',
   '#234830',
 ];
@@ -100,8 +100,7 @@ export const errorTypeColors = {
 export const statusColors = {
   untouched:   'gray.2',
   inProgress:  'honey.4',
-  memorized:   'sage.4',
-  mastered:    'sage.7',
+  memorized:   'sage.7',
 } as const;
 
 /* =========================================================================

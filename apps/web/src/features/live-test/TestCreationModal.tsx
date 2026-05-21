@@ -75,18 +75,18 @@ function validateRange(
     const blocked: number[] = [];
     for (let p = start; p <= end; p++) {
       const s = statuses.get(p);
-      if (s === 'memorized' || s === 'mastered') blocked.push(p);
+      if (s === 'memorized') blocked.push(p);
     }
     if (blocked.length > 0) {
       const list = blocked.length <= 5 ? blocked.join(', ') : `${blocked.slice(0, 5).join(', ')}, …`;
       return `Newly-memorized tests must cover pages you haven't passed yet. Already memorized: ${list}.`;
     }
   } else {
-    // revision: pages must already be memorized or mastered.
+    // revision: pages must already be memorized.
     const ineligible: number[] = [];
     for (let p = start; p <= end; p++) {
       const s = statuses.get(p);
-      if (s !== 'memorized' && s !== 'mastered') ineligible.push(p);
+      if (s !== 'memorized') ineligible.push(p);
     }
     if (ineligible.length > 0) {
       const list = ineligible.length <= 5

@@ -36,7 +36,7 @@ export const initialState: OnboardingState = {
   surahs: [],
   inProgress: undefined,
   newPerDay: 1,
-  revisionPerDay: 5,
+  revisionPerDay: 3,
   submitting: false,
   error: null,
 };

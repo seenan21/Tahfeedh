@@ -19,7 +19,7 @@ interface HydrationResult {
  * Edit Memorization (Settings → /onboarding?edit=1) opens onto Step 2 with
  * juz/surah selections that match the DB. Derivation rules:
  * - A juz is "selected" when every page in its range has memorization_page
- *   status memorized or mastered.
+ *   status memorized.
  * - A surah is "selected" when every page covering it is fully memorized.
  *   Partial surahs (some-but-not-all pages memorized) are deliberately not
  *   surfaced as upToAyah selections — the student can re-tick them via the
@@ -38,7 +38,7 @@ export async function hydrateOnboardingFromDb(studentId: string): Promise<Hydrat
       .from('memorization_page')
       .select('page_number, status')
       .eq('student_id', studentId)
-      .in('status', ['memorized', 'mastered']),
+      .eq('status', 'memorized'),
   ]);
 
   if (settingsRes.error) throw settingsRes.error;
@@ -91,7 +91,7 @@ export async function hydrateOnboardingFromDb(studentId: string): Promise<Hydrat
       surahs,
       inProgress: undefined,
       newPerDay: settings ? Number(settings.pages_per_session_new) : 1,
-      revisionPerDay: settings?.pages_per_session_revision ?? 5,
+      revisionPerDay: settings?.pages_per_session_revision ?? 3,
       direction: settings?.hifz_direction ?? 'forward',
     },
   };

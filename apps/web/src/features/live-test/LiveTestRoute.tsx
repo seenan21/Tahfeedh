@@ -1,8 +1,15 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams, useRouteContext } from '@tanstack/react-router';
-import { ActionIcon, Alert, Button, Center, Container, Group, Loader, Paper, Stack, Text } from '@mantine/core';
+import { ActionIcon, Alert, Button, Center, Container, Group, Loader, Paper, Stack, Switch, Text } from '@mantine/core';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import type { LogErrorInput, PostTestSummary, TestRange, TestType } from '@tahfeedh/shared';
+import { useQuery } from '@tanstack/react-query';
+import type {
+  ErrorLocationStatsRow,
+  LogErrorInput,
+  PostTestSummary,
+  TestRange,
+  TestType,
+} from '@tahfeedh/shared';
 import { supabase } from '../../lib/supabase';
 import { toastError } from '../../lib/toast';
 import { MushafPage } from '../../mushaf/MushafPage';
@@ -21,6 +28,21 @@ interface TestRow {
   test_mode: 'enrolled_teacher' | 'guest_teacher';
   guest_tester_name: string | null;
   started_at: string;
+  student_id: string;
+  teacher_id: string | null;
+}
+
+async function fetchHistoricalErrorStats(studentId: string): Promise<ErrorLocationStatsRow[]> {
+  const { data, error } = await supabase
+    .from('error_location_stats')
+    .select(
+      'id, student_id, signature, surah_number, ayah_number, word_position, error_type, ' +
+        'occurrence_count, first_seen_at, last_seen_at, tests_since_last_occurrence, cleared, updated_at',
+    )
+    .eq('student_id', studentId)
+    .eq('cleared', false);
+  if (error) throw error;
+  return (data as unknown as ErrorLocationStatsRow[] | null) ?? [];
 }
 
 function rangeLabel(ranges: TestRange[]): string {
@@ -60,6 +82,11 @@ export function LiveTestRoute() {
   const [summary, setSummary] = useState<PostTestSummary | null>(null);
   const [summaryOpen, setSummaryOpen] = useState(false);
   const [finishedDuration, setFinishedDuration] = useState<number | null>(null);
+  // Default OFF — the witness shouldn't be biased by historical markers unless
+  // they actively reach for the diagnostic context. Opt-in toggle on the toolbar.
+  const [showHistorical, setShowHistorical] = useState(false);
+
+  const isWitnessingTeacher = test != null && test.teacher_id === user.id;
 
   const session = useTestSession(testId, user.id);
 
@@ -68,7 +95,9 @@ export function LiveTestRoute() {
     setLoadError(null);
     supabase
       .from('test')
-      .select('id, test_type, status, ranges, test_mode, guest_tester_name, started_at')
+      .select(
+        'id, test_type, status, ranges, test_mode, guest_tester_name, started_at, student_id, teacher_id',
+      )
       .eq('id', testId)
       .single()
       .then(({ data, error }) => {
@@ -130,6 +159,27 @@ export function LiveTestRoute() {
   // stats-row shape getOverlayMarkers expects, so each tap immediately tints
   // the corresponding word on the mushaf as feedback to the witness.
   const liveOverlay = useMemo(() => loggedErrorsToStats(session.errors), [session.errors]);
+
+  // Historical overlay (opt-in via the toolbar Switch). RLS already permits the
+  // witnessing teacher to read error_location_stats for an enrolled student via
+  // is_my_student() (migration 0008). The query is gated on showHistorical so
+  // we don't pay for the round-trip until the teacher asks for it.
+  const { data: historicalStats } = useQuery({
+    queryKey: ['error_location_stats', test?.student_id],
+    queryFn: () => fetchHistoricalErrorStats(test!.student_id),
+    enabled: showHistorical && !!test?.student_id,
+    staleTime: 30_000,
+  });
+
+  // When historical is on, layer it under the live overlay so fresh taps still
+  // win on the same word. The MushafPage merger handles dedupe/intensity.
+  const mergedOverlay = useMemo(
+    () =>
+      showHistorical && historicalStats
+        ? [...historicalStats, ...liveOverlay]
+        : liveOverlay,
+    [showHistorical, historicalStats, liveOverlay],
+  );
 
   // Redirect completed/abandoned tests to the read-only recap route.
   // Must live in an effect — calling navigate during render is a side effect.
@@ -208,8 +258,8 @@ export function LiveTestRoute() {
         `}</style>
         <Stack gap="sm">
           <Paper p="xs" radius="md" withBorder>
-            <Group justify="space-between">
-              <Group gap={6}>
+            <Group justify="space-between" wrap="nowrap">
+              <Group gap={6} wrap="nowrap">
                 <ActionIcon
                   variant="subtle"
                   disabled={pageIndex === 0}
@@ -231,16 +281,28 @@ export function LiveTestRoute() {
                   <ChevronRight size={16} />
                 </ActionIcon>
               </Group>
-              <Text size="xs" c="dimmed">
-                Tap a word to log an error
-              </Text>
+              <Group gap="md" wrap="nowrap">
+                {isWitnessingTeacher && (
+                  <Switch
+                    size="sm"
+                    label="Show historical errors"
+                    checked={showHistorical}
+                    onChange={(e) => setShowHistorical(e.currentTarget.checked)}
+                    color="sage.6"
+                    styles={{ label: { fontSize: 12 }, track: { cursor: 'pointer' } }}
+                  />
+                )}
+                <Text size="xs" c="dimmed">
+                  Tap a word to log an error
+                </Text>
+              </Group>
             </Group>
           </Paper>
           <MushafPage
             pageNumber={currentPage}
             onWordTap={handleWordTap}
             onVerseNumberTap={handleVerseNumberTap}
-            overlays={liveOverlay}
+            overlays={mergedOverlay}
             overlayMode="heatmap"
           />
         </Stack>

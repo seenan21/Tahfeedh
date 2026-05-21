@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { Fragment, useMemo } from 'react';
 import {
   Badge,
   Button,
@@ -10,7 +10,7 @@ import {
 } from '@mantine/core';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { BookOpenText, PartyPopper, Repeat2, Sparkles } from 'lucide-react';
-import type { TodaySession } from '@tahfeedh/shared';
+import type { TodaySession, TodaySessionRevisionRow } from '@tahfeedh/shared';
 import { supabase } from '../lib/supabase';
 import { toastError } from '../lib/toast';
 import { EmptySlotCard } from './EmptySlotCard';
@@ -173,16 +173,7 @@ export function SessionPlanCard({ studentId, readOnly = false }: SessionPlanCard
           badge="Awaiting hifz"
         />
       ) : (
-        <Stack gap="sm">
-          {session.revision_pages.map((row) => (
-            <PlanRow
-              key={`rev-${row.page_number}`}
-              pageNumber={row.page_number}
-              attempted={row.attempted}
-              kind="revision"
-            />
-          ))}
-        </Stack>
+        <RevisionList rows={session.revision_pages} />
       )}
 
       {/* Footer */}
@@ -237,6 +228,59 @@ export function SessionPlanCard({ studentId, readOnly = false }: SessionPlanCard
           Tests are the only way pages move through the queues — start one whenever a witness is ready.
         </Text>
       )}
+    </Stack>
+  );
+}
+
+// ADR 0048 — group consecutive same-kind revision rows under "Recent" / "Older"
+// sub-headers without resorting the score-ordered interleave. If every row has
+// the same kind (or is missing kind from a pre-migration daily_session row),
+// render flat.
+function RevisionList({ rows }: { rows: TodaySessionRevisionRow[] }) {
+  const kinds = new Set(rows.map((r) => r.kind ?? 'older'));
+  const showHeaders = kinds.size > 1;
+
+  if (!showHeaders) {
+    return (
+      <Stack gap="sm">
+        {rows.map((row) => (
+          <PlanRow
+            key={`rev-${row.page_number}`}
+            pageNumber={row.page_number}
+            attempted={row.attempted}
+            kind="revision"
+          />
+        ))}
+      </Stack>
+    );
+  }
+
+  // Group consecutive same-kind runs so the score ordering is preserved.
+  const groups: Array<{ kind: 'recent' | 'older'; rows: TodaySessionRevisionRow[] }> = [];
+  for (const row of rows) {
+    const k = (row.kind ?? 'older') as 'recent' | 'older';
+    const last = groups[groups.length - 1];
+    if (last && last.kind === k) last.rows.push(row);
+    else groups.push({ kind: k, rows: [row] });
+  }
+
+  return (
+    <Stack gap="sm">
+      {groups.map((g, gi) => (
+        <Fragment key={`grp-${gi}`}>
+          <Text size="xs" tt="uppercase" c="dimmed" fw={700} lts={0.6}>
+            {g.kind === 'recent' ? 'Recent' : 'Older'}
+          </Text>
+          {g.rows.map((row) => (
+            <PlanRow
+              key={`rev-${row.page_number}`}
+              pageNumber={row.page_number}
+              attempted={row.attempted}
+              kind="revision"
+            />
+          ))}
+        </Fragment>
+      ))}
     </Stack>
   );
 }

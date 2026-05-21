@@ -55,7 +55,9 @@ type ErrorType =
   | 'forgotten_verse'
   | 'hesitation';
 
-type Rating = 'fail' | 'needs_work' | 'pass_needs_practice' | 'good' | 'strong_pass' | 'excellent';
+// ADR 0046 — pass | repeat (was 6-value). Historical narrative collapses:
+// fail/needs_work → repeat; everything else → pass.
+type Rating = 'pass' | 'repeat';
 
 // -------------------------------------------------------------------------
 // Env + client
@@ -331,18 +333,18 @@ function buildAhmadTests(studentId: string, teacherId: string): TestSpec[] {
   // 12 tests over 14 days. All newly_memorized on pages 601–604.
   // Ratings progress from 'needs_work' to 'good' over time.
   const arc: { daysAgo: number; rating: Rating; page: number; errors: number }[] = [
-    { daysAgo: 14, rating: 'needs_work',         page: 604, errors: 7 },
-    { daysAgo: 13, rating: 'needs_work',         page: 604, errors: 6 },
-    { daysAgo: 12, rating: 'pass_needs_practice',page: 604, errors: 4 },
-    { daysAgo: 11, rating: 'fail',               page: 603, errors: 8 },
-    { daysAgo: 10, rating: 'needs_work',         page: 603, errors: 6 },
-    { daysAgo: 8,  rating: 'pass_needs_practice',page: 603, errors: 4 },
-    { daysAgo: 7,  rating: 'good',               page: 602, errors: 3 },
-    { daysAgo: 6,  rating: 'pass_needs_practice',page: 602, errors: 5 },
-    { daysAgo: 4,  rating: 'good',               page: 602, errors: 3 },
-    { daysAgo: 3,  rating: 'good',               page: 601, errors: 3 },
-    { daysAgo: 2,  rating: 'pass_needs_practice',page: 601, errors: 4 },
-    { daysAgo: 1,  rating: 'good',               page: 601, errors: 2 },
+    { daysAgo: 14, rating: 'repeat',         page: 604, errors: 7 },
+    { daysAgo: 13, rating: 'repeat',         page: 604, errors: 6 },
+    { daysAgo: 12, rating: 'pass',page: 604, errors: 4 },
+    { daysAgo: 11, rating: 'repeat',               page: 603, errors: 8 },
+    { daysAgo: 10, rating: 'repeat',         page: 603, errors: 6 },
+    { daysAgo: 8,  rating: 'pass',page: 603, errors: 4 },
+    { daysAgo: 7,  rating: 'pass',               page: 602, errors: 3 },
+    { daysAgo: 6,  rating: 'pass',page: 602, errors: 5 },
+    { daysAgo: 4,  rating: 'pass',               page: 602, errors: 3 },
+    { daysAgo: 3,  rating: 'pass',               page: 601, errors: 3 },
+    { daysAgo: 2,  rating: 'pass',page: 601, errors: 4 },
+    { daysAgo: 1,  rating: 'pass',               page: 601, errors: 2 },
   ];
 
   const wordErrTypes: ErrorType[] = ['tajweed', 'pronunciation', 'omission', 'addition', 'mismatch'];
@@ -435,16 +437,16 @@ function buildYusufTests(studentId: string, teacherId: string): TestSpec[] {
     5, 10, 15, 20,
   ];
   const arc: { daysAgo: number; rating: Rating; testType: 'newly_memorized' | 'revision'; page: number; errors: number }[] = [
-    { daysAgo: 21, rating: 'good',       testType: 'revision',         page: 604, errors: 2 },
-    { daysAgo: 19, rating: 'strong_pass',testType: 'revision',         page: 580, errors: 0 },
-    { daysAgo: 16, rating: 'good',       testType: 'revision',         page: 600, errors: 1 },
-    { daysAgo: 13, rating: 'excellent',  testType: 'revision',         page: 20,  errors: 0 },
-    { daysAgo: 11, rating: 'strong_pass',testType: 'revision',         page: 560, errors: 1 },
-    { daysAgo: 9,  rating: 'pass_needs_practice',testType: 'revision', page: 593, errors: 2 },
-    { daysAgo: 7,  rating: 'good',       testType: 'revision',         page: 555, errors: 1 },
-    { daysAgo: 5,  rating: 'strong_pass',testType: 'revision',         page: 575, errors: 0 },
-    { daysAgo: 3,  rating: 'excellent',  testType: 'revision',         page: 10,  errors: 0 },
-    { daysAgo: 1,  rating: 'good',       testType: 'revision',         page: 565, errors: 1 },
+    { daysAgo: 21, rating: 'pass',       testType: 'revision',         page: 604, errors: 2 },
+    { daysAgo: 19, rating: 'pass',testType: 'revision',         page: 580, errors: 0 },
+    { daysAgo: 16, rating: 'pass',       testType: 'revision',         page: 600, errors: 1 },
+    { daysAgo: 13, rating: 'pass',  testType: 'revision',         page: 20,  errors: 0 },
+    { daysAgo: 11, rating: 'pass',testType: 'revision',         page: 560, errors: 1 },
+    { daysAgo: 9,  rating: 'pass',testType: 'revision', page: 593, errors: 2 },
+    { daysAgo: 7,  rating: 'pass',       testType: 'revision',         page: 555, errors: 1 },
+    { daysAgo: 5,  rating: 'pass',testType: 'revision',         page: 575, errors: 0 },
+    { daysAgo: 3,  rating: 'pass',  testType: 'revision',         page: 10,  errors: 0 },
+    { daysAgo: 1,  rating: 'pass',       testType: 'revision',         page: 565, errors: 1 },
   ];
 
   const wordErrTypes: ErrorType[] = ['tajweed', 'pronunciation', 'addition'];

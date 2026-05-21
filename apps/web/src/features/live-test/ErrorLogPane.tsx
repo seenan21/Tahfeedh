@@ -4,17 +4,15 @@ import type { TestRating, TestType } from '@tahfeedh/shared';
 import { LoggedErrorsList } from './LoggedErrorsList';
 import type { LoggedError } from './useTestSession';
 
+// ADR 0046 — two ratings for both test types. Teacher's subjective call.
 const RATING_OPTIONS: Record<TestType, Array<{ value: TestRating; label: string }>> = {
   newly_memorized: [
-    { value: 'strong_pass', label: 'Strong pass — promote to memorized' },
-    { value: 'pass_needs_practice', label: 'Pass with practice notes' },
-    { value: 'fail', label: 'Fail — needs another attempt' },
+    { value: 'pass', label: 'Pass — memorized' },
+    { value: 'repeat', label: 'Repeat — needs another attempt' },
   ],
   revision: [
-    { value: 'excellent', label: 'Excellent — clean' },
-    { value: 'good', label: 'Good — small slips' },
-    { value: 'needs_work', label: 'Needs work — frequent errors' },
-    { value: 'fail', label: 'Fail — major gaps' },
+    { value: 'pass', label: 'Pass — sound' },
+    { value: 'repeat', label: 'Repeat — needs another attempt' },
   ],
 };
 

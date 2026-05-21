@@ -16,14 +16,9 @@ interface MushafGridProps {
 }
 
 const COLORS: Record<GridStatus, { bg: string; fg: string; border: string }> = {
-  mastered: {
+  memorized: {
     bg: 'var(--mantine-color-sage-7)',
     fg: 'var(--mantine-color-parchment-0)',
-    border: 'transparent',
-  },
-  memorized: {
-    bg: 'var(--mantine-color-sage-4)',
-    fg: 'var(--mantine-color-mihrab-9)',
     border: 'transparent',
   },
   in_progress: {
@@ -39,7 +34,6 @@ const COLORS: Record<GridStatus, { bg: string; fg: string; border: string }> = {
 };
 
 const STATUS_LABEL: Record<GridStatus, string> = {
-  mastered: 'mastered',
   memorized: 'memorized',
   in_progress: 'in progress',
   untouched: 'untouched',
@@ -47,7 +41,6 @@ const STATUS_LABEL: Record<GridStatus, string> = {
 
 interface JuzSummary {
   total: number;
-  mastered: number;
   memorized: number;
   inProgress: number;
   untouched: number;
@@ -60,15 +53,13 @@ function summarizeJuz(
 ): JuzSummary {
   const s: JuzSummary = {
     total: end - start + 1,
-    mastered: 0,
     memorized: 0,
     inProgress: 0,
     untouched: 0,
   };
   for (let p = start; p <= end; p++) {
     const st = pageStatus.get(p);
-    if (st === 'mastered') s.mastered += 1;
-    else if (st === 'memorized') s.memorized += 1;
+    if (st === 'memorized') s.memorized += 1;
     else if (st === 'in_progress') s.inProgress += 1;
     else s.untouched += 1;
   }
@@ -158,7 +149,7 @@ function JuzStrip({
   end: number;
   summary: JuzSummary;
 }) {
-  const completed = summary.mastered + summary.memorized;
+  const completed = summary.memorized;
   return (
     <Stack gap={6}>
       <Group justify="space-between" align="baseline" wrap="nowrap">
@@ -182,15 +173,6 @@ function JuzStrip({
 
       {/* Stacked progress bar — one segment per status, widths proportional. */}
       <div className={classes.progressBar} aria-hidden>
-        {summary.mastered > 0 && (
-          <span
-            className={classes.progressSeg}
-            style={{
-              flex: summary.mastered,
-              background: COLORS.mastered.bg,
-            }}
-          />
-        )}
         {summary.memorized > 0 && (
           <span
             className={classes.progressSeg}
@@ -222,16 +204,13 @@ function JuzStrip({
       </div>
 
       <Group gap="md">
-        {summary.mastered > 0 && (
-          <CountChip color={COLORS.mastered.bg} label={`${summary.mastered} mastered`} />
-        )}
         {summary.memorized > 0 && (
           <CountChip color={COLORS.memorized.bg} label={`${summary.memorized} memorized`} />
         )}
         {summary.inProgress > 0 && (
           <CountChip color={COLORS.in_progress.bg} label={`${summary.inProgress} in progress`} />
         )}
-        {summary.mastered === 0 && summary.memorized === 0 && summary.inProgress === 0 && (
+        {summary.memorized === 0 && summary.inProgress === 0 && (
           <Text size="xs" c="dimmed">
             untouched
           </Text>

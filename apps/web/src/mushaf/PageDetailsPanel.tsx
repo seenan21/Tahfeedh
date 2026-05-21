@@ -17,7 +17,6 @@ interface PageDetailsPanelProps {
 interface MemorizationPageRow {
   status: MemorizationStatus;
   memorized_at: string | null;
-  mastered_at: string | null;
   updated_at: string | null;
 }
 
@@ -70,7 +69,7 @@ async function fetchPageRow(
 ): Promise<MemorizationPageRow | null> {
   const { data, error } = await supabase
     .from('memorization_page')
-    .select('status, memorized_at, mastered_at, updated_at')
+    .select('status, memorized_at, updated_at')
     .eq('student_id', studentId)
     .eq('page_number', pageNumber)
     .maybeSingle();
@@ -231,8 +230,7 @@ function formatRelative(iso: string | null): string {
 }
 
 const STATUS_BADGE: Record<MemorizationStatus | 'untouched', { color: string; label: string }> = {
-  mastered: { color: 'sage.7', label: 'Mastered' },
-  memorized: { color: 'sage.4', label: 'Memorized' },
+  memorized: { color: 'sage.7', label: 'Memorized' },
   in_progress: { color: 'honey.4', label: 'In progress' },
   untouched: { color: 'gray.4', label: 'Untouched' },
 };
@@ -322,11 +320,6 @@ export function PageDetailsPanel({ studentId, pageNumber, pageStatus }: PageDeta
         {row?.memorized_at && (
           <Text size="xs" c="dimmed">
             Memorized {formatRelative(row.memorized_at)}
-          </Text>
-        )}
-        {row?.mastered_at && (
-          <Text size="xs" c="dimmed">
-            Mastered {formatRelative(row.mastered_at)}
           </Text>
         )}
       </Stack>

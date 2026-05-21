@@ -11,7 +11,17 @@ import {
   Text,
   Tooltip,
 } from '@mantine/core';
-import { ArrowLeft, BookOpenText, Eye, Flame, GraduationCap, History, Lock, Play } from 'lucide-react';
+import {
+  ArrowLeft,
+  BookOpen,
+  BookOpenText,
+  Eye,
+  Flame,
+  GraduationCap,
+  History,
+  Lock,
+  Play,
+} from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import type { TestMode, TestRating, TestType } from '@tahfeedh/shared';
 import { homeRouteForRole } from '../lib/auth';
@@ -23,7 +33,7 @@ import { TestCreationModal } from '../features/live-test/TestCreationModal';
 import { JuzProgressBar } from '../today/JuzProgressBar';
 import { SessionPlanCard } from '../today/SessionPlanCard';
 
-export const Route = createFileRoute('/_authed/students/$studentId')({
+export const Route = createFileRoute('/_authed/students/$studentId/')({
   beforeLoad: ({ context }) => {
     const { user } = context;
     if (user.role !== 'teacher') throw redirect({ to: homeRouteForRole(user.role) });
@@ -196,14 +206,26 @@ function StudentDrillIn() {
               )}
             </Group>
           </Stack>
-          <Button
-            color="honey.7"
-            size="md"
-            leftSection={<Play size={16} />}
-            onClick={() => setTestModalOpen(true)}
-          >
-            Start test for this student
-          </Button>
+          <Group gap="xs" wrap="nowrap">
+            <Button
+              variant="default"
+              size="md"
+              leftSection={<BookOpen size={16} />}
+              onClick={() =>
+                navigate({ to: '/students/$studentId/mushaf', params: { studentId } })
+              }
+            >
+              View mushaf
+            </Button>
+            <Button
+              color="honey.7"
+              size="md"
+              leftSection={<Play size={16} />}
+              onClick={() => setTestModalOpen(true)}
+            >
+              Start test for this student
+            </Button>
+          </Group>
         </Group>
       </Stack>
 
@@ -358,15 +380,9 @@ function deriveWitnessLabel(
 
 function ratingColor(r: TestRating): string {
   switch (r) {
-    case 'strong_pass':
-    case 'excellent':
+    case 'pass':
       return 'sage';
-    case 'good':
-    case 'pass_needs_practice':
-      return 'sage.4';
-    case 'needs_work':
-      return 'honey';
-    case 'fail':
+    case 'repeat':
       return 'brick.7';
     default:
       return 'gray';

@@ -17,7 +17,7 @@ interface ForecastCardProps {
 
 interface MemorizedPageRow {
   page_number: number;
-  status: 'in_progress' | 'memorized' | 'mastered';
+  status: 'in_progress' | 'memorized';
 }
 
 interface SettingsRow {
@@ -75,7 +75,7 @@ export function ForecastCard({ studentId, isOwnView = true }: ForecastCardProps)
     if (!pages || !settings) return null;
     const memorizedPageNumbers = new Set<number>();
     for (const r of pages) {
-      if (r.status === 'memorized' || r.status === 'mastered') memorizedPageNumbers.add(r.page_number);
+      if (r.status === 'memorized') memorizedPageNumbers.add(r.page_number);
     }
     return computeForecast({
       memorizedPageNumbers,

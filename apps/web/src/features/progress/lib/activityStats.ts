@@ -13,10 +13,9 @@ export interface ActivityStats extends ActivityStatsRaw {
   passRate: number; // 0..1, NaN-safe (0 when no tests)
 }
 
-const PASSING_RATINGS: TestRating[] = ['strong_pass', 'excellent'];
-
+// ADR 0046 — only one passing rating now (`pass`).
 export function isPassingRating(r: TestRating | null | undefined): boolean {
-  return r != null && PASSING_RATINGS.includes(r);
+  return r === 'pass';
 }
 
 export function summarize({

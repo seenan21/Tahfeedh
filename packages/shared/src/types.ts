@@ -2,19 +2,17 @@
 
 export type UserRole = 'student' | 'teacher';
 
-export type MemorizationStatus = 'in_progress' | 'memorized' | 'mastered';
+export type MemorizationStatus = 'in_progress' | 'memorized';
 
 export type TestType = 'newly_memorized' | 'revision';
 
 export type TestStatus = 'in_progress' | 'completed' | 'abandoned';
 
-export type TestRating =
-  | 'strong_pass'
-  | 'pass_needs_practice'
-  | 'excellent'
-  | 'good'
-  | 'needs_work'
-  | 'fail';
+// Collapsed to pass | repeat (ADR 0046). The DB enum still contains the legacy
+// values (strong_pass, excellent, good, pass_needs_practice, needs_work, fail)
+// because Postgres can't DROP VALUE, but historical rows were migrated to
+// pass/repeat in migration 0029 and no new code writes the legacy values.
+export type TestRating = 'pass' | 'repeat';
 
 export type ErrorType =
   | 'tajweed'
@@ -112,21 +110,37 @@ export interface NextNewLesson {
   kind: NextNewLessonKind;
 }
 
-// Today's frozen daily session (M5, ADR 0020). Returned by the `today_session`
-// SQL RPC and by `load_next_session`. The plan itself is persisted in
-// daily_session; the `attempted` flag is derived at read time from completed
-// tests today whose page-typed ranges include the row's page (pass or fail).
-export interface TodaySessionRow {
+// Today's session plan (ADR 0020 frozen-per-index model; ADR 0048 unified
+// revision scoring). Returned by the `today_session` SQL RPC and by
+// `load_next_session`. The plan itself is persisted in daily_session; the
+// `attempted` flag is derived at read time from completed tests today whose
+// page-typed ranges include the row's page (pass or fail).
+//
+// `kind` ('recent' | 'older') is present on revision rows only — it lets the
+// UI render Recent/Older sub-headers without re-deriving from ayah_review_state.
+// New-lesson rows omit it.
+export interface TodaySessionNewRow {
   page_number: number;
   attempted: boolean;
 }
+
+export type RevisionRowKind = 'recent' | 'older';
+
+export interface TodaySessionRevisionRow {
+  page_number: number;
+  attempted: boolean;
+  kind: RevisionRowKind;
+}
+
+// Back-compat alias — pre-ADR 0048 callers that only typed the new-lesson shape.
+export type TodaySessionRow = TodaySessionNewRow;
 
 export interface TodaySession {
   session_id: string;
   session_date: string;
   session_index: number;
-  new_lesson_pages: TodaySessionRow[];
-  revision_pages: TodaySessionRow[];
+  new_lesson_pages: TodaySessionNewRow[];
+  revision_pages: TodaySessionRevisionRow[];
   all_attempted: boolean;
 }
 

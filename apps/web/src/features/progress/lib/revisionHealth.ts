@@ -23,7 +23,7 @@ export interface AyahReviewRow {
 
 export interface MemorizedPageRow {
   page_number: number;
-  status: 'in_progress' | 'memorized' | 'mastered';
+  status: 'in_progress' | 'memorized';
 }
 
 export interface RevisionHealthInput {
@@ -46,7 +46,7 @@ export function computeRevisionHealth({
   const today = now ?? new Date();
   const memorizedPages = new Set<number>();
   for (const r of memorizedPageRows) {
-    if (r.status === 'memorized' || r.status === 'mastered') memorizedPages.add(r.page_number);
+    if (r.status === 'memorized') memorizedPages.add(r.page_number);
   }
 
   // (surah,ayah) → last_reviewed_at

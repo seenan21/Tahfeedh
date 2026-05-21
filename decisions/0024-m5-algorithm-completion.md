@@ -1,7 +1,7 @@
 # 0024 — M5 Algorithm Completion: Mastery, Fail-Reset, Queue 3 Priority
 
 **Date:** 2026-05-19
-**Status:** Partially superseded by 0037 (only the "strong_pass-only promotes" rule; mastery rule, fail behavior, and Queue 2/3 ordering still stand)
+**Status:** Superseded by 0047 (mastery dropped), 0048 (rating enum collapsed), 0049 (2-stage machine), 0050 (unified scoring). Partial supersession by 0037 also stands historically.
 **Milestone:** M5
 
 ## Context

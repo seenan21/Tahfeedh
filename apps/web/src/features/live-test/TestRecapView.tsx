@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { useNavigate } from '@tanstack/react-router';
+import { useQuery } from '@tanstack/react-query';
 import {
   Alert,
   Anchor,
@@ -57,49 +58,52 @@ interface ErrorLogRow {
   created_at: string;
 }
 
+interface RecapData {
+  test: TestRow;
+  errors: LoggedError[];
+}
+
+async function fetchRecap(testId: string): Promise<RecapData> {
+  // Run both queries in parallel but surface either failure to the caller —
+  // the previous implementation silently swallowed rejections, leaving the
+  // UI on an infinite spinner. We throw on either error so React Query routes
+  // to the existing error Alert branch instead.
+  const [testRes, errorsRes] = await Promise.all([
+    supabase
+      .from('test')
+      .select(
+        'id, test_type, status, rating, notes, ranges, started_at, ended_at, test_mode, guest_tester_name, summary',
+      )
+      .eq('id', testId)
+      .single(),
+    supabase
+      .from('error_log')
+      .select(
+        'id, signature, surah_number, ayah_number, word_position, word_position_end, error_type, teacher_note, related_surah, related_ayah, created_at',
+      )
+      .eq('test_id', testId)
+      .order('created_at', { ascending: true }),
+  ]);
+  if (testRes.error) throw new Error(testRes.error.message);
+  if (!testRes.data) throw new Error('test not found');
+  if (errorsRes.error) throw new Error(errorsRes.error.message);
+  return {
+    test: testRes.data as TestRow,
+    errors: ((errorsRes.data ?? []) as ErrorLogRow[]).map(toLoggedError),
+  };
+}
+
 export function TestRecapView({ testId }: { testId: string }) {
   const navigate = useNavigate();
-  const [test, setTest] = useState<TestRow | null>(null);
-  const [errors, setErrors] = useState<LoggedError[]>([]);
-  const [loadError, setLoadError] = useState<string | null>(null);
-  const [loaded, setLoaded] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-    setLoadError(null);
-    setLoaded(false);
-
-    Promise.all([
-      supabase
-        .from('test')
-        .select(
-          'id, test_type, status, rating, notes, ranges, started_at, ended_at, test_mode, guest_tester_name, summary',
-        )
-        .eq('id', testId)
-        .single(),
-      supabase
-        .from('error_log')
-        .select(
-          'id, signature, surah_number, ayah_number, word_position, word_position_end, error_type, teacher_note, related_surah, related_ayah, created_at',
-        )
-        .eq('test_id', testId)
-        .order('created_at', { ascending: true }),
-    ]).then(([testRes, errorsRes]) => {
-      if (cancelled) return;
-      if (testRes.error || !testRes.data) {
-        setLoadError(testRes.error?.message ?? 'test not found');
-        setLoaded(true);
-        return;
-      }
-      setTest(testRes.data as TestRow);
-      setErrors(((errorsRes.data ?? []) as ErrorLogRow[]).map(toLoggedError));
-      setLoaded(true);
-    });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [testId]);
+  const { data, isLoading, error } = useQuery({
+    queryKey: ['test_recap', testId],
+    queryFn: () => fetchRecap(testId),
+    staleTime: 30_000,
+  });
+  const test = data?.test ?? null;
+  const errors = data?.errors ?? [];
+  const loadError = error ? (error instanceof Error ? error.message : String(error)) : null;
+  const loaded = !isLoading;
 
   const durationSec = useMemo(() => {
     if (!test?.started_at || !test?.ended_at) return null;
@@ -325,33 +329,18 @@ function formatDuration(totalSec: number): string {
 
 function ratingLabel(r: TestRating): string {
   switch (r) {
-    case 'excellent':
-      return 'Excellent';
-    case 'good':
-      return 'Good';
-    case 'needs_work':
-      return 'Needs work';
-    case 'strong_pass':
-      return 'Strong pass';
-    case 'pass_needs_practice':
-      return 'Pass · practice';
-    case 'fail':
-      return 'Fail';
+    case 'pass':
+      return 'Pass';
+    case 'repeat':
+      return 'Repeat';
   }
 }
 
 function ratingColor(r: TestRating): string {
   switch (r) {
-    case 'excellent':
-    case 'strong_pass':
+    case 'pass':
       return 'sage.7';
-    case 'good':
-      return 'sage.5';
-    case 'pass_needs_practice':
-      return 'honey.5';
-    case 'needs_work':
-      return 'honey.7';
-    case 'fail':
+    case 'repeat':
       return 'brick.6';
   }
 }
